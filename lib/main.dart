@@ -15,7 +15,7 @@ class PhotoOrganizerApp extends StatelessWidget {
       title: 'Photo Organizer PC',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const OrganizerPage(),
+      home: OrganizerPage(),
     );
   }
 }

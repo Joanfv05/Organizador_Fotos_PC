@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
 
 class ActionButton extends StatelessWidget {
-  final String label;
+  final String text;
   final VoidCallback onPressed;
-  final bool loading;
-  final bool enabled;
+  final bool isLoading;
+  final bool isDisabled;
 
   const ActionButton({
     super.key,
-    required this.label,
+    required this.text,
     required this.onPressed,
-    this.loading = false,
-    this.enabled = true,
+    this.isLoading = false,
+    this.isDisabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: enabled && !loading ? onPressed : null,
+      onPressed: (isLoading || isDisabled) ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       ),
-      child: loading
+      child: isLoading
           ? const SizedBox(
-        width: 24,
-        height: 24,
+        width: 20,
+        height: 20,
         child: CircularProgressIndicator(
-          color: Colors.white,
           strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
         ),
       )
-          : Text(label),
+          : Text(
+        text,
+        style: const TextStyle(fontSize: 16),
+      ),
     );
   }
 }

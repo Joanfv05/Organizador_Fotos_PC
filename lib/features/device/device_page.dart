@@ -1,56 +1,73 @@
 import 'package:flutter/material.dart';
 import '../../core/adb/adb_service.dart';
+import '../../widgets/action_button.dart';
 
-class DeviceStatusPage extends StatefulWidget {
-  const DeviceStatusPage({super.key});
+class DevicePage extends StatefulWidget {
+  const DevicePage({super.key});
 
   @override
-  State<DeviceStatusPage> createState() => _DeviceStatusPageState();
+  State<DevicePage> createState() => _DevicePageState();
 }
 
-class _DeviceStatusPageState extends State<DeviceStatusPage> {
-  final ADBService adb = ADBService();
-  bool loading = true;
-  bool connected = false;
+class _DevicePageState extends State<DevicePage> {
+  bool _isConnected = false;
+  bool _loading = false;
+  late final ADBService _adbService;
 
   @override
   void initState() {
     super.initState();
-    _checkDevice();
+
+    _adbService = ADBService();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkConnection();
+    });
   }
 
-  Future<void> _checkDevice() async {
-    setState(() => loading = true);
-    connected = await adb.isDeviceConnected();
-    setState(() => loading = false);
+  Future<void> checkConnection() async {
+    if (_loading) return;
+
+    setState(() => _loading = true);
+    try {
+      final connected = await _adbService.isDeviceConnected();
+      setState(() {
+        _isConnected = connected;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isConnected = false;
+        _loading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Estado del dispositivo Android')),
+      appBar: AppBar(title: const Text('Dispositivo Android')),
       body: Center(
-        child: loading
-            ? const CircularProgressIndicator()
-            : Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              connected ? Icons.check_circle : Icons.error,
+            _loading
+                ? const CircularProgressIndicator()
+                : Icon(
+              _isConnected ? Icons.check_circle : Icons.cancel,
+              color: _isConnected ? Colors.green : Colors.red,
               size: 64,
-              color: connected ? Colors.green : Colors.red,
             ),
             const SizedBox(height: 16),
             Text(
-              connected
-                  ? 'Dispositivo conectado ✅'
-                  : 'No hay dispositivo conectado ❌',
-              style: const TextStyle(fontSize: 20),
+              _isConnected ? 'Dispositivo conectado' : 'No hay dispositivo conectado',
+              style: Theme.of(context).textTheme.titleMedium, // Aquí SÍ puedes usar Theme.of
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _checkDevice,
-              child: const Text('Volver a comprobar'),
+            const SizedBox(height: 32),
+            ActionButton(
+              text: 'Comprobar conexión',
+              onPressed: checkConnection,
+              isLoading: _loading,
             ),
           ],
         ),
