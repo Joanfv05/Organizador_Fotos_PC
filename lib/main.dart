@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'features/organizer/organizer_page.dart';
+import 'features/organizer/presentation/views/organizer_page.dart';
 import 'theme/app_theme.dart';
 
 void main() {
