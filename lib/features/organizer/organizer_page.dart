@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path/path.dart' as path;
+
 import '../../core/adb/adb_service.dart';
 import '../../core/filesystem/file_item.dart';
-
 
 class OrganizerPage extends StatefulWidget {
   const OrganizerPage({super.key});
@@ -65,18 +68,22 @@ class _OrganizerPageState extends State<OrganizerPage> {
     );
 
     // SD externa real (UUID tipo ED7B-CBA2)
-    final storageDirs = await adbService.listDirectories('/storage');
-    for (final dir in storageDirs) {
-      if (RegExp(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$').hasMatch(dir)) {
-        final fullPath = '/storage/$dir';
-        roots.add(
-          FileItem(
-            name: 'Tarjeta SD ($dir)',
-            path: fullPath,
-            children: await _loadDirectories(fullPath),
-          ),
-        );
+    try {
+      final storageDirs = await adbService.listDirectories('/storage');
+      for (final dir in storageDirs) {
+        if (RegExp(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$').hasMatch(dir)) {
+          final fullPath = '/storage/$dir';
+          roots.add(
+            FileItem(
+              name: 'Tarjeta SD ($dir)',
+              path: fullPath,
+              children: await _loadDirectories(fullPath),
+            ),
+          );
+        }
       }
+    } catch (_) {
+      // Ignorar errores de listado
     }
 
     setState(() => _tree = roots);
@@ -115,6 +122,43 @@ class _OrganizerPageState extends State<OrganizerPage> {
         }
       },
     );
+  }
+
+  /* =========================
+     INICIAR SCRCPY DESDE ASSETS
+     ========================= */
+
+  Future<void> _startScrcpy() async {
+    if (isDeviceConnected != true) {
+      _showMessage('No hay dispositivo conectado', error: true);
+      return;
+    }
+
+    try {
+      if (Platform.isWindows) {
+        // Ejecuta scrcpy desde los assets de Windows
+        final scrcpyPath = 'assets/adb/windows/scrcpy.exe';
+
+        await Process.start(
+          scrcpyPath,
+          [],
+          mode: ProcessStartMode.detachedWithStdio,
+        );
+      } else if (Platform.isLinux) {
+        // Ejecuta scrcpy desde la ruta que tienes descargada
+        final scrcpyPath = '/home/joan/scrcpy-linux-x86_64-v3.3.4/scrcpy';
+
+        await Process.start(
+          scrcpyPath,
+          [],
+          mode: ProcessStartMode.detachedWithStdio,
+        );
+      }
+
+      _showMessage('scrcpy iniciado correctamente');
+    } catch (e) {
+      _showMessage('Error al iniciar scrcpy: $e', error: true);
+    }
   }
 
   /* =========================
@@ -164,6 +208,13 @@ class _OrganizerPageState extends State<OrganizerPage> {
                     icon: const Icon(Icons.usb),
                     label: const Text('Verificar conexión'),
                   ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed:
+                    (isDeviceConnected == true) ? _startScrcpy : null,
+                    icon: const Icon(Icons.screen_share),
+                    label: const Text('Iniciar scrcpy'),
+                  ),
                   const SizedBox(height: 24),
                   if (isDeviceConnected != null)
                     Text(
@@ -173,8 +224,7 @@ class _OrganizerPageState extends State<OrganizerPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color:
-                        isDeviceConnected! ? Colors.green : Colors.red,
+                        color: isDeviceConnected! ? Colors.green : Colors.red,
                       ),
                     ),
                 ],
