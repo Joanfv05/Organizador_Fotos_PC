@@ -6,6 +6,9 @@ import 'package:path/path.dart' as path;
 import '../../core/adb/adb_service.dart';
 import '../../core/filesystem/file_item.dart';
 
+import 'package:http/http.dart' as http;
+import 'package:archive/archive_io.dart';
+
 class OrganizerPage extends StatefulWidget {
   const OrganizerPage({super.key});
 
@@ -28,9 +31,8 @@ class _OrganizerPageState extends State<OrganizerPage> {
   }
 
   /* =========================
-     BOTÓN PRINCIPAL
+     BOTÓN PRINCIPAL — VERIFICAR CONEXIÓN
      ========================= */
-
   Future<void> _checkConnection() async {
     setState(() => _loading = true);
 
@@ -53,7 +55,6 @@ class _OrganizerPageState extends State<OrganizerPage> {
   /* =========================
      CONSTRUIR RAÍCES
      ========================= */
-
   Future<void> _buildRootTree() async {
     final roots = <FileItem>[];
 
@@ -92,7 +93,6 @@ class _OrganizerPageState extends State<OrganizerPage> {
   /* =========================
      CARGAR SOLO CARPETAS
      ========================= */
-
   Future<List<FileItem>> _loadDirectories(String path) async {
     final dirs = await adbService.listDirectories(path);
     return dirs
@@ -109,7 +109,6 @@ class _OrganizerPageState extends State<OrganizerPage> {
   /* =========================
      UI TREE
      ========================= */
-
   Widget _buildItem(FileItem item) {
     return ExpansionTile(
       leading: const Icon(Icons.folder, color: Colors.blue),
@@ -124,10 +123,9 @@ class _OrganizerPageState extends State<OrganizerPage> {
     );
   }
 
-  /* =========================
-     INICIAR SCRCPY DESDE ASSETS
+/* =========================
+     INICIAR SCRCPY -
      ========================= */
-
   Future<void> _startScrcpy() async {
     if (isDeviceConnected != true) {
       _showMessage('No hay dispositivo conectado', error: true);
@@ -136,35 +134,65 @@ class _OrganizerPageState extends State<OrganizerPage> {
 
     try {
       if (Platform.isWindows) {
-        // Ejecuta scrcpy desde los assets de Windows
-        final scrcpyPath = 'assets/adb/windows/scrcpy.exe';
-
         await Process.start(
-          scrcpyPath,
-          [],
-          mode: ProcessStartMode.detachedWithStdio,
+            'assets/adb/windows/scrcpy.exe',
+            [],
+            mode: ProcessStartMode.detachedWithStdio
         );
+        _showMessage('scrcpy iniciado');
+
       } else if (Platform.isLinux) {
-        // Ejecuta scrcpy desde la ruta que tienes descargada
-        final scrcpyPath = '/home/joan/scrcpy-linux-x86_64-v3.3.4/scrcpy';
+        // SIEMPRE usar tu instalación local
+        final homeDir = Platform.environment['HOME']!;
+        final scrcpyPath = '$homeDir/scrcpy-linux-x86_64-v3.3.4/scrcpy';
 
-        await Process.start(
-          scrcpyPath,
-          [],
-          mode: ProcessStartMode.detachedWithStdio,
-        );
+        // Verificar que existe
+        final file = File(scrcpyPath);
+        if (!await file.exists()) {
+          _showMessage('Error: scrcpy no encontrado en $scrcpyPath', error: true);
+          return;
+        }
+
+        // Verificar conexión ADB primero
+        _showMessage('Verificando conexión ADB...');
+        final adbResult = await Process.run('adb', ['devices']);
+        print('ADB Devices: ${adbResult.stdout}');
+
+        // Ejecutar scrcpy con argumentos básicos
+        _showMessage('Iniciando scrcpy...');
+
+        await Process.run('bash', [
+          '-c',
+          '''
+          cd "$homeDir/scrcpy-linux-x86_64-v3.3.4" && 
+          ./scrcpy --always-on-top --max-size=1920
+          '''
+        ], runInShell: true);
+
+        _showMessage('scrcpy ejecutado');
       }
 
-      _showMessage('scrcpy iniciado correctamente');
     } catch (e) {
-      _showMessage('Error al iniciar scrcpy: $e', error: true);
+      _showMessage('Error: $e', error: true);
+      print('Error detallado: $e');
     }
   }
 
   /* =========================
-     UI
+     MENSAJES DE FEEDBACK
      ========================= */
+  void _showMessage(String msg, {bool error = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Colors.red : Colors.green,
+      ),
+    );
+  }
 
+  /* =========================
+     UI PRINCIPAL
+     ========================= */
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -232,15 +260,6 @@ class _OrganizerPageState extends State<OrganizerPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showMessage(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: error ? Colors.red : Colors.green,
       ),
     );
   }
