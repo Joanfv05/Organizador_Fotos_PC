@@ -1,13 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 import '../../core/adb/adb_service.dart';
-import '../../core/filesystem/file_item.dart';
-
-import 'package:http/http.dart' as http;
-import 'package:archive/archive_io.dart';
+import '../../core/adb/media_extractor.dart';
+import 'package:photo_organizer_pc/features/organizer/models/file_item.dart';
 
 class OrganizerPage extends StatefulWidget {
   const OrganizerPage({super.key});
@@ -18,20 +15,21 @@ class OrganizerPage extends StatefulWidget {
 
 class _OrganizerPageState extends State<OrganizerPage> {
   late final ADBService adbService;
+  late final MediaExtractorService extractorService;
 
   bool? isDeviceConnected;
   bool _loading = false;
-
   List<FileItem> _tree = [];
 
   @override
   void initState() {
     super.initState();
     adbService = ADBService();
+    extractorService = MediaExtractorService();
   }
 
   /* =========================
-     BOTÓN PRINCIPAL — VERIFICAR CONEXIÓN
+     VERIFICAR CONEXIÓN
      ========================= */
   Future<void> _checkConnection() async {
     setState(() => _loading = true);
@@ -53,7 +51,7 @@ class _OrganizerPageState extends State<OrganizerPage> {
   }
 
   /* =========================
-     CONSTRUIR RAÍCES
+     CONSTRUIR ÁRBOL DE DIRECTORIOS
      ========================= */
   Future<void> _buildRootTree() async {
     final roots = <FileItem>[];
@@ -96,18 +94,12 @@ class _OrganizerPageState extends State<OrganizerPage> {
   Future<List<FileItem>> _loadDirectories(String path) async {
     final dirs = await adbService.listDirectories(path);
     return dirs
-        .map(
-          (d) => FileItem(
-        name: d,
-        path: '$path/$d',
-        children: [],
-      ),
-    )
+        .map((d) => FileItem(name: d, path: '$path/$d', children: []))
         .toList();
   }
 
   /* =========================
-     UI TREE
+     CONSTRUIR ITEM DEL ÁRBOL
      ========================= */
   Widget _buildItem(FileItem item) {
     return ExpansionTile(
@@ -123,8 +115,8 @@ class _OrganizerPageState extends State<OrganizerPage> {
     );
   }
 
-/* =========================
-     INICIAR SCRCPY -
+  /* =========================
+     INICIAR SCRCPY
      ========================= */
   Future<void> _startScrcpy() async {
     if (isDeviceConnected != true) {
@@ -135,47 +127,57 @@ class _OrganizerPageState extends State<OrganizerPage> {
     try {
       if (Platform.isWindows) {
         await Process.start(
-            'assets/adb/windows/scrcpy.exe',
-            [],
-            mode: ProcessStartMode.detachedWithStdio
+          'assets/adb/windows/scrcpy.exe',
+          [],
+          mode: ProcessStartMode.detachedWithStdio,
         );
         _showMessage('scrcpy iniciado');
-
       } else if (Platform.isLinux) {
-        // SIEMPRE usar tu instalación local
         final homeDir = Platform.environment['HOME']!;
         final scrcpyPath = '$homeDir/scrcpy-linux-x86_64-v3.3.4/scrcpy';
-
-        // Verificar que existe
         final file = File(scrcpyPath);
+
         if (!await file.exists()) {
           _showMessage('Error: scrcpy no encontrado en $scrcpyPath', error: true);
           return;
         }
 
-        // Verificar conexión ADB primero
         _showMessage('Verificando conexión ADB...');
         final adbResult = await Process.run('adb', ['devices']);
         print('ADB Devices: ${adbResult.stdout}');
 
-        // Ejecutar scrcpy con argumentos básicos
         _showMessage('Iniciando scrcpy...');
-
         await Process.run('bash', [
           '-c',
-          '''
-          cd "$homeDir/scrcpy-linux-x86_64-v3.3.4" && 
-          ./scrcpy --always-on-top --max-size=1920
-          '''
+          'cd "$homeDir/scrcpy-linux-x86_64-v3.3.4" && ./scrcpy --always-on-top --max-size=1920'
         ], runInShell: true);
 
         _showMessage('scrcpy ejecutado');
       }
-
     } catch (e) {
       _showMessage('Error: $e', error: true);
       print('Error detallado: $e');
     }
+  }
+
+  /* =========================
+     EXTRAER ARCHIVOS DE HOY
+     ========================= */
+  Future<void> _extractTodayMedia() async {
+    if (isDeviceConnected != true) {
+      _showMessage('No hay dispositivo conectado', error: true);
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await extractorService.extractTodayMedia();
+      _showMessage('Archivos de hoy extraídos correctamente');
+    } catch (e) {
+      _showMessage('Error: $e', error: true);
+      print('Error detallado: $e');
+    }
+    setState(() => _loading = false);
   }
 
   /* =========================
@@ -199,7 +201,7 @@ class _OrganizerPageState extends State<OrganizerPage> {
       appBar: AppBar(title: const Text('Photo Organizer')),
       body: Row(
         children: [
-          // IZQUIERDA — árbol (30%)
+          // Árbol de directorios (30%)
           Flexible(
             flex: 3,
             child: Container(
@@ -223,7 +225,7 @@ class _OrganizerPageState extends State<OrganizerPage> {
             ),
           ),
 
-          // DERECHA — acciones (70%)
+          // Panel de acciones (70%)
           Flexible(
             flex: 7,
             child: Padding(
@@ -238,10 +240,15 @@ class _OrganizerPageState extends State<OrganizerPage> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed:
-                    (isDeviceConnected == true) ? _startScrcpy : null,
+                    onPressed: (isDeviceConnected == true) ? _startScrcpy : null,
                     icon: const Icon(Icons.screen_share),
                     label: const Text('Iniciar scrcpy'),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: (isDeviceConnected == true) ? _extractTodayMedia : null,
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Extraer fotos de hoy'),
                   ),
                   const SizedBox(height: 24),
                   if (isDeviceConnected != null)
