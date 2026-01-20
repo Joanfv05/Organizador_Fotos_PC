@@ -1,4 +1,3 @@
-````markdown
 # 📱 Photo Organizer PC
 
 Organiza tus fotos de Android en tu PC con Flutter. Simple, rápido y eficiente.
@@ -13,7 +12,7 @@ Organiza tus fotos de Android en tu PC con Flutter. Simple, rápido y eficiente.
 
 ## 📦 Instalación Rápida
 
-### 1. Instalar ADB (Linux/macOS)
+### 1. Instalar ADB (Linux)
 ```bash
 # Linux (Ubuntu/Debian):
 sudo apt update && sudo apt install android-tools-adb
@@ -24,20 +23,18 @@ adb version
 
 ### 2. Instalar scrcpy (solo Linux)
 
-```bash
-# Linux (Ubuntu/Debian):
-sudo apt update && sudo apt install scrcpy
+⚠️ La app busca el binario **scrcpy** en: `$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy`.  
+Debes **descargar la versión oficial** desde [GitHub](https://github.com/Genymobile/scrcpy/releases/tag/v3.3.4) y extraerla **exactamente en esa ruta** para que la app pueda iniciarlo.
 
-# Verifica que funciona:
-scrcpy
-```
+### Verifica que funciona:
+$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy
 
 > ⚠️ **Nota:** En Windows, scrcpy ya viene incluido en los assets de la app.
 
 ### 3. Clonar y ejecutar la app
 
 ```bash
-git clone https://github.com/tuusuario/photo_organizer_pc.git
+git clone https://github.com/Joanfv05/Organizador_Fotos_PC.git
 cd photo_organizer_pc
 flutter pub get
 flutter run
@@ -57,12 +54,6 @@ flutter run
 2. **Acepta "Permitir depuración USB"** en el teléfono
 3. **¡Listo!** La app detectará tu dispositivo automáticamente
 
-### Paso 3: Monitorizar móvil con scrcpy
-
-* En Linux: asegúrate de que `scrcpy` esté instalado (`sudo apt install scrcpy`)
-* Pulsa el botón **Iniciar scrcpy** en la app para abrir la ventana de monitorización
-* En Windows: el botón usa la versión incluida en los assets de la app
-
 ## 🐛 Problemas Comunes
 
 ### ❌ "No detecta mi Android"
@@ -78,14 +69,9 @@ sudo usermod -aG plugdev $USER
 
 ### ❌ "scrcpy no muestra pantalla en Linux"
 
-* Asegúrate de tener instalado scrcpy en el sistema: `sudo apt install scrcpy`
-* Ejecuta `scrcpy` en terminal para probar que funcione
-* La app lanza scrcpy mediante shell (`runInShell: true`) para abrir la ventana
-
-### ❌ "Error de Flutter al iniciar"
-
-**Causa:** Acceso a `Theme.of(context)` demasiado pronto
-**Solución:** Ya está corregido en el código. Si lo ves, no uses `const` en `MaterialApp(home:)`
+* Asegúrate de **descargar scrcpy** desde [GitHub](https://github.com/Genymobile/scrcpy/releases/tag/v3.3.4) y extraerlo en: `$HOME/scrcpy-linux-x86_64-v3.3.4/`
+* Verifica que el binario exista en: `$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy`
+* La app lanza scrcpy mediante shell (`runInShell: true`) para abrir la ventana de monitorización del móvil
 
 ## 🗂️ Estructura Simple
 
@@ -97,39 +83,12 @@ lib/
 └── main.dart           ← Entrada principal
 ```
 
-## 🛠️ Para Desarrolladores
-
-### ¿Cómo funciona la detección ADB y scrcpy?
-
-```dart
-final adb = ADBService(); // Auto-detecta ADB del sistema o usa assets
-bool conectado = await adb.isDeviceConnected();
-
-// Scrcpy (Linux usa scrcpy del sistema, Windows de assets)
-await _startScrcpy();
-```
-
-### Build para producción
-
-```bash
-# Windows:
-flutter build windows
-
-# Linux:
-flutter build linux
-
-# Los ejecutables estarán en:
-# build/windows/runner/Release/
-# build/linux/runner/release/
-```
-
 ## 📱 Compatibilidad
 
-| Sistema | ADB Requerido | Scrcpy      | Notas                                        |
-| ------- | ------------- | ----------- | -------------------------------------------- |
-| Windows | ✅ Incluido    | ✅ Incluido  | Descarga automática en assets                |
-| Linux   | ⚠️ Instalar   | ⚠️ Instalar | `sudo apt install android-tools-adb scrcpy`  |
-| macOS   | ⚠️ Instalar   | ⚠️ Instalar | `brew install android-platform-tools scrcpy` |
+| Sistema | ADB Requerido | Scrcpy      | Notas                                                                        |
+| ------- | ------------- | ----------- | ---------------------------------------------------------------------------- |
+| Windows | ✅ Incluido    | ✅ Incluido  | Descarga automática en assets                                                |
+| Linux   | ⚠️ Instalar   | ⚠️ Instalar | Instalar scrcpy manualmente y ubicarlo en `$HOME/scrcpy-linux-x86_64-v3.3.4` |
 
 ## ⚡ Características Técnicas
 
@@ -159,4 +118,3 @@ MIT - ¡Usa, modifica, comparte libremente!
 
 ✨ **¡Organiza y monitoriza tus recuerdos en segundos!**
 
-```
