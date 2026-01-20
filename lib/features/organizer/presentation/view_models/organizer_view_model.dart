@@ -6,16 +6,17 @@ class OrganizerViewModel extends ChangeNotifier {
   final OrganizerRepository repository;
 
   bool? isDeviceConnected;
-  bool isLoading = false;
   List<FileItem> tree = [];
   String? errorMessage;
   String? successMessage;
+  bool isTreeLoading = false;
+  bool isActionLoading = false;
 
   OrganizerViewModel({required this.repository});
 
   // Conexión
   Future<void> checkConnection() async {
-    _setLoading(true);
+    _setTreeLoading(true);
     errorMessage = null;
 
     try {
@@ -32,11 +33,11 @@ class OrganizerViewModel extends ChangeNotifier {
     } catch (e) {
       errorMessage = 'Error al verificar conexión: $e';
     } finally {
-      _setLoading(false);
+      _setTreeLoading(false);
     }
   }
 
-  // Cargar árbol
+  // Cargar árbol raíz
   Future<void> _buildRootTree() async {
     try {
       tree = await repository.buildRootTree();
@@ -49,12 +50,14 @@ class OrganizerViewModel extends ChangeNotifier {
 
   // Cargar subdirectorios
   Future<void> loadSubdirectories(FileItem item) async {
+    _setTreeLoading(true);
     try {
       final children = await repository.loadDirectories(item.path);
       item.children.addAll(children);
-      notifyListeners();
     } catch (e) {
       errorMessage = 'Error al cargar subdirectorios: $e';
+    } finally {
+      _setTreeLoading(false);
     }
   }
 
@@ -66,14 +69,14 @@ class OrganizerViewModel extends ChangeNotifier {
       return;
     }
 
-    _setLoading(true);
+    _setActionLoading(true);
     try {
       await repository.startScrcpy();
       successMessage = 'scrcpy iniciado';
     } catch (e) {
       errorMessage = 'Error al iniciar scrcpy: $e';
     } finally {
-      _setLoading(false);
+      _setActionLoading(false);
     }
   }
 
@@ -85,14 +88,14 @@ class OrganizerViewModel extends ChangeNotifier {
       return;
     }
 
-    _setLoading(true);
+    _setActionLoading(true);
     try {
       await repository.extractTodayMedia();
       successMessage = 'Archivos de hoy extraídos correctamente';
     } catch (e) {
       errorMessage = 'Error al extraer archivos: $e';
     } finally {
-      _setLoading(false);
+      _setActionLoading(false);
     }
   }
 
@@ -104,14 +107,14 @@ class OrganizerViewModel extends ChangeNotifier {
       return;
     }
 
-    _setLoading(true);
+    _setActionLoading(true);
     try {
       await repository.copyAndOrganizeMedia();
       successMessage = 'Archivos copiados y organizados correctamente';
     } catch (e) {
       errorMessage = 'Error al copiar archivos: $e';
     } finally {
-      _setLoading(false);
+      _setActionLoading(false);
     }
   }
 
@@ -122,9 +125,17 @@ class OrganizerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Helpers
-  void _setLoading(bool loading) {
-    isLoading = loading;
+  // Helpers específicos para cada tipo de loading
+  void _setTreeLoading(bool loading) {
+    isTreeLoading = loading;
     notifyListeners();
   }
+
+  void _setActionLoading(bool loading) {
+    isActionLoading = loading;
+    notifyListeners();
+  }
+
+  // Helper para saber si hay algún loading activo
+  bool get isAnyLoading => isTreeLoading || isActionLoading;
 }

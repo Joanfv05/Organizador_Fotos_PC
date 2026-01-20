@@ -61,7 +61,7 @@ class _OrganizerPageContent extends StatelessWidget {
             flex: 3,
             child: DirectoryTree(
               tree: viewModel.tree,
-              isLoading: viewModel.isLoading,
+              isLoading: viewModel.isTreeLoading,
               isConnected: viewModel.isDeviceConnected,
               onLoadSubdirectories: (item) =>
                   viewModel.loadSubdirectories(item),
@@ -72,7 +72,7 @@ class _OrganizerPageContent extends StatelessWidget {
           Flexible(
             flex: 7,
             child: ActionPanel(
-              isLoading: viewModel.isLoading,
+              isLoading: viewModel.isActionLoading,
               isConnected: viewModel.isDeviceConnected,
               onCheckConnection: () => viewModel.checkConnection(),
               onStartScrcpy: () => viewModel.startScrcpy(),
