@@ -101,7 +101,8 @@ class OrganizerRepository {
       throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
     }
 
-    final localBackupDir = Directory('LocalBackup');
+    final executableDir = File(Platform.resolvedExecutable).parent;
+    final localBackupDir = Directory('${executableDir.path}/Fotos de la Tarjeta SD');
     await localBackupDir.create(recursive: true);
 
     // Obtener lista de archivos primero
@@ -194,6 +195,36 @@ class OrganizerRepository {
         ));
       }
     }
+  }
+
+  /// Extraer fotos de una fecha específica
+  Future<void> extractMediaFromSpecificDate(
+      DateTime date, {
+        Function(TransferProgress)? onProgress,
+      }) async {
+    await extractorService.extractMediaFromDate(
+      date,
+      onProgress: onProgress,
+    );
+  }
+
+  /// Buscar archivos por fecha en la SD
+  Future<List<String>> findFilesByDate(DateTime date) async {
+    final sdCameraPath = await adbService.detectSDCameraPath();
+    if (sdCameraPath == null) {
+      throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
+    }
+
+    final files = await adbService.listFiles(sdCameraPath);
+    final dateStr = date.toString().substring(0, 10).replaceAll('-', '');
+    final regex = RegExp(r'(?:[A-Z]+_)?(\d{8})_\d{6}.*');
+
+    return files.where((filename) {
+      final match = regex.firstMatch(filename);
+      if (match == null) return false;
+      final fileDate = match.group(1);
+      return fileDate == dateStr;
+    }).toList();
   }
 
   // Métodos privados

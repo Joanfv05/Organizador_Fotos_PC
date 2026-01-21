@@ -228,6 +228,73 @@ class OrganizerViewModel extends ChangeNotifier {
     }
   }
 
+  // En la clase OrganizerViewModel, añade este método:
+
+// ============ COPIAR DE FECHA ESPECÍFICA ============
+  Future<void> extractSpecificDateMedia(DateTime? selectedDate) async {
+    if (isDeviceConnected != true) {
+      errorMessage = '❌ No hay dispositivo conectado';
+      notifyListeners();
+      return;
+    }
+
+    if (selectedDate == null) {
+      errorMessage = '❌ Por favor selecciona una fecha';
+      notifyListeners();
+      return;
+    }
+
+    _setActionLoading(true);
+    _clearProgress();
+    currentOperation = 'Copiando fotos de fecha específica';
+    final dateStr = '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}';
+    destinationFolder = 'Fotos_${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+
+    _addLog('📷 INICIANDO COPIA DE FECHA ESPECÍFICA');
+    _addLog('📅 Fecha seleccionada: $dateStr');
+    _addLog('📁 Carpeta destino: ./$destinationFolder');
+    _addLog('🔍 Buscando archivos en la SD...');
+
+    try {
+      // Primero buscar archivos
+      final matchingFiles = await repository.findFilesByDate(selectedDate);
+      _addLog('📊 Encontrados ${matchingFiles.length} archivos para la fecha');
+
+      if (matchingFiles.isEmpty) {
+        successMessage = 'ℹ️ No se encontraron archivos para la fecha $dateStr';
+        _addLog('ℹ️ No hay archivos para esta fecha');
+      } else {
+        // Luego extraer
+        await repository.extractMediaFromSpecificDate(
+          selectedDate,
+          onProgress: (progress) {
+            currentProgress = progress;
+
+            if (progress.type == TransferType.scanning) {
+              _addLog('🔍 ${progress.currentFile}');
+            } else {
+              _addLog('📥 Descargando: ${progress.currentFile} (${progress.current}/${progress.total})');
+            }
+
+            notifyListeners();
+          },
+        );
+
+        successMessage = '✅ Archivos de $dateStr copiados correctamente';
+        _addLog('🎉 COPIA COMPLETADA EXITOSAMENTE');
+        _addLog('📂 Archivos guardados en: ./$destinationFolder');
+        _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
+      }
+    } catch (e) {
+      errorMessage = '❌ Error al copiar archivos: $e';
+      _addLog('❌ ERROR DURANTE COPIA: $e');
+      _addLog('💡 Sugerencia: Verifica que la tarjeta SD tenga archivos con fecha $dateStr');
+    } finally {
+      _setActionLoading(false);
+      _clearProgress();
+    }
+  }
+
   // ============ MÉTODOS DE PROGRESO ============
   void updateProgress(TransferProgress progress) {
     currentProgress = progress;

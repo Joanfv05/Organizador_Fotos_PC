@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'features/organizer/presentation/views/organizer_page.dart';
 import 'theme/app_theme.dart';
 
@@ -12,10 +13,21 @@ class PhotoOrganizerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Photo Organizer PC',
+      title: 'Organizador de Fotos PC',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: OrganizerPage(),
+      home: const OrganizerPage(),
+      // Configuración de localización
+      locale: const Locale('es', 'ES'),
+      supportedLocales: const [
+        Locale('es', 'ES'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

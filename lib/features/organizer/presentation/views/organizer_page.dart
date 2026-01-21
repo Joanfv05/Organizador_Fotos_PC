@@ -53,7 +53,7 @@ class _OrganizerPageContent extends StatelessWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Photo Organizer')),
+      appBar: AppBar(title: const Text('Organizador de Fotos PC')),
       body: Row(
         children: [
           // Panel del árbol de directorios (30%)
@@ -78,6 +78,7 @@ class _OrganizerPageContent extends StatelessWidget {
               onStartScrcpy: () => viewModel.startScrcpy(),
               onExtractTodayMedia: () => viewModel.extractTodayMedia(),
               onCopyAndOrganize: () => viewModel.copyAndOrganizeMedia(),
+              onExtractSpecificDateMedia: (date) => viewModel.extractSpecificDateMedia(date),
             ),
           ),
         ],
