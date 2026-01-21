@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:photo_organizer_pc/core/adb/adb_service.dart';
 import 'package:photo_organizer_pc/core/adb/media_extractor.dart';
 import 'package:photo_organizer_pc/features/organizer/domain/models/file_item.dart';
+import 'package:photo_organizer_pc/features/organizer/domain/models/transfer_progress.dart';
 
 class OrganizerRepository {
   final ADBService adbService;
@@ -85,12 +86,16 @@ class OrganizerRepository {
   }
 
   // Extracción de media
-  Future<void> extractTodayMedia() async {
-    await extractorService.extractTodayMedia();
+  Future<void> extractTodayMedia({
+    Function(TransferProgress)? onProgress,
+  }) async {
+    await extractorService.extractTodayMedia(onProgress: onProgress);
   }
 
   // Copiar y organizar media
-  Future<void> copyAndOrganizeMedia() async {
+  Future<void> copyAndOrganizeMedia({
+    Function(TransferProgress)? onProgress,
+  }) async {
     final sdCameraPath = await adbService.detectSDCameraPath();
     if (sdCameraPath == null) {
       throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
@@ -99,7 +104,96 @@ class OrganizerRepository {
     final localBackupDir = Directory('LocalBackup');
     await localBackupDir.create(recursive: true);
 
-    await adbService.runAdbCommand(['pull', sdCameraPath, localBackupDir.path]);
+    // Obtener lista de archivos primero
+    final files = await adbService.listFiles(sdCameraPath);
+
+    // Filtrar solo archivos de media
+    final mediaFiles = files.where((file) {
+      final ext = file.toLowerCase();
+      return ext.endsWith('.jpg') ||
+          ext.endsWith('.jpeg') ||
+          ext.endsWith('.png') ||
+          ext.endsWith('.mp4') ||
+          ext.endsWith('.mov') ||
+          ext.endsWith('.heic');
+    }).toList();
+
+    // Copiar con progreso
+    for (int i = 0; i < mediaFiles.length; i++) {
+      final file = mediaFiles[i];
+      final remotePath = '$sdCameraPath/$file';
+      final localPath = '${localBackupDir.path}/$file';
+
+      // Notificar progreso
+      if (onProgress != null) {
+        onProgress(TransferProgress(
+          current: i + 1,
+          total: mediaFiles.length,
+          currentFile: file,
+          type: TransferType.pull,
+        ));
+      }
+
+      // Copiar archivo
+      await adbService.pullFile(remotePath, localPath);
+
+      // Pequeña pausa para no sobrecargar
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    // Organizar por mes
+    await _organizeByMonth(localBackupDir.path, onProgress: onProgress);
+  }
+
+  // Método para organizar por mes
+  Future<void> _organizeByMonth(String sourceDir,
+      {Function(TransferProgress)? onProgress}) async {
+    final sourceDirectory = Directory(sourceDir);
+    final files = await sourceDirectory
+        .list()
+        .where((e) => e is File)
+        .cast<File>()
+        .toList();
+
+    // Mapa de meses en español
+    final meses = {
+      1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+      5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+      9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    };
+
+    for (int i = 0; i < files.length; i++) {
+      final file = files[i];
+      final fileName = file.path.split('/').last;
+
+      // Buscar fecha en formato: YYYYMMDD_HHMMSS
+      final dateMatch = RegExp(r'(\d{4})(\d{2})(\d{2})_').firstMatch(fileName);
+
+      if (dateMatch != null) {
+        final year = dateMatch.group(1)!;
+        final monthNum = int.parse(dateMatch.group(2)!);
+        final monthName = meses[monthNum] ?? 'Desconocido';
+
+        // Formato: "01 - Enero"
+        final monthFolder = '${monthNum.toString().padLeft(2, '0')} - $monthName';
+        final monthDir = Directory('$sourceDir/$year/$monthFolder');
+        await monthDir.create(recursive: true);
+
+        // Mover archivo
+        final newPath = '${monthDir.path}/$fileName';
+        await file.rename(newPath);
+      }
+
+      // Notificar progreso
+      if (onProgress != null) {
+        onProgress(TransferProgress(
+          current: i + 1,
+          total: files.length,
+          currentFile: 'Organizando: $fileName',
+          type: TransferType.organizing,
+        ));
+      }
+    }
   }
 
   // Métodos privados

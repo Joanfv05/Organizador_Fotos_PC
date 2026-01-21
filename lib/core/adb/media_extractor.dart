@@ -1,135 +1,196 @@
+// media_extractor.dart
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../adb/adb_service.dart';
+import 'package:photo_organizer_pc/features/organizer/domain/models/transfer_progress.dart';
 
 class MediaExtractorService {
-final ADBService adbService = ADBService();
+  final ADBService adbService = ADBService();
 
-/// Extraer archivos de una fecha específica desde la SD
-Future<void> extractMediaFromDate(DateTime date,
-{String? customLocalPath, bool preserveMetadata = true}) async {
-final deviceConnected = await adbService.isDeviceConnected();
-if (!deviceConnected) {
-throw Exception('No hay dispositivo conectado');
-}
+  /// Extraer archivos de hoy desde la SD - ACTUALIZADO
+  Future<void> extractTodayMedia({
+    Function(TransferProgress)? onProgress,
+    String? customLocalPath,
+  }) async {
+    final today = DateTime.now();
+    await extractMediaFromDate(
+      today,
+      customLocalPath: customLocalPath,
+      onProgress: onProgress,
+    );
+  }
 
-final remoteDir = await adbService.detectSDCameraPath();
-if (remoteDir == null) {
-throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
-}
+  /// Extraer archivos de una fecha específica - ACTUALIZADO
+  Future<void> extractMediaFromDate(
+      DateTime date, {
+        String? customLocalPath,
+        bool preserveMetadata = true,
+        Function(TransferProgress)? onProgress,
+      }) async {
+    final deviceConnected = await adbService.isDeviceConnected();
+    if (!deviceConnected) {
+      throw Exception('No hay dispositivo conectado');
+    }
 
-final dateStr = date.toString().substring(0, 10).replaceAll('-', '');
-final folderName = date.toString().substring(0, 10);
-final localDir = customLocalPath != null
-? Directory(customLocalPath)
-    : Directory(folderName);
+    final remoteDir = await adbService.detectSDCameraPath();
+    if (remoteDir == null) {
+      throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
+    }
 
-if (!await localDir.exists()) {
-await localDir.create(recursive: true);
-}
+    final dateStr = date.toString().substring(0, 10).replaceAll('-', '');
+    final folderName = date.toString().substring(0, 10);
+    final localDir = customLocalPath != null
+        ? Directory(customLocalPath)
+        : Directory(folderName);
 
-final files = await adbService.listFiles(remoteDir);
-if (files.isEmpty) {
-throw Exception('No hay archivos en la carpeta remota');
-}
+    if (!await localDir.exists()) {
+      await localDir.create(recursive: true);
+    }
 
-final regex = RegExp(ADBService.filenameDateRegex);
-int total = 0;
+    final files = await adbService.listFiles(remoteDir);
+    if (files.isEmpty) {
+      throw Exception('No hay archivos en la carpeta remota');
+    }
 
-for (final filename in files) {
-final extension = path.extension(filename).toLowerCase();
-if (!ADBService.mediaExtensions.contains(extension)) continue;
+    final regex = RegExp(ADBService.filenameDateRegex);
 
-final match = regex.firstMatch(filename);
-if (match == null) continue;
+    // Filtrar archivos de la fecha específica
+    final filteredFiles = <String>[];
+    for (final filename in files) {
+      final extension = path.extension(filename).toLowerCase();
+      if (!ADBService.mediaExtensions.contains(extension)) continue;
 
-final fileDate = match.group(1);
-if (fileDate != dateStr) continue;
+      final match = regex.firstMatch(filename);
+      if (match == null) continue;
 
-final remotePath = '$remoteDir/$filename';
-final localPath = path.join(localDir.path, filename);
+      final fileDate = match.group(1);
+      if (fileDate == dateStr) {
+        filteredFiles.add(filename);
+      }
+    }
 
-final result = await adbService.pullFile(remotePath, localPath,
-preserveMetadata: preserveMetadata);
+    // Copiar archivos con progreso
+    for (int i = 0; i < filteredFiles.length; i++) {
+      final filename = filteredFiles[i];
+      final remotePath = '$remoteDir/$filename';
+      final localPath = path.join(localDir.path, filename);
 
-if (result.contains('Error')) {
-print('⚠️ Error extrayendo $filename: $result');
-continue;
-}
+      // Notificar progreso
+      if (onProgress != null) {
+        onProgress(TransferProgress(
+          current: i + 1,
+          total: filteredFiles.length,
+          currentFile: filename,
+          type: TransferType.pull,
+        ));
+      }
 
-total++;
-print('✅ $filename copiado.');
-}
+      final result = await adbService.pullFile(
+        remotePath,
+        localPath,
+        preserveMetadata: preserveMetadata,
+      );
 
-print('\n🎉 Proceso completado. $total archivos copiados.');
-}
+      if (result.contains('Error')) {
+        print('⚠️ Error extrayendo $filename: $result');
+      } else {
+        print('✅ $filename copiado.');
+      }
 
-/// Extraer archivos de hoy desde la SD
-Future<void> extractTodayMedia({String? customLocalPath}) async {
-final today = DateTime.now();
-await extractMediaFromDate(today, customLocalPath: customLocalPath);
-}
+      // Pequeña pausa
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
 
-/// Extraer archivos de un mes específico
-Future<void> extractMediaFromMonth(int year, int month,
-{String? customLocalPath, bool preserveMetadata = true}) async {
-final deviceConnected = await adbService.isDeviceConnected();
-if (!deviceConnected) {
-throw Exception('No hay dispositivo conectado');
-}
+    print('\n🎉 Proceso completado. ${filteredFiles.length} archivos copiados.');
+  }
 
-final remoteDir = await adbService.detectSDCameraPath();
-if (remoteDir == null) {
-throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
-}
+  /// Extraer archivos de un mes específico - ACTUALIZADO
+  Future<void> extractMediaFromMonth(
+      int year,
+      int month, {
+        String? customLocalPath,
+        bool preserveMetadata = true,
+        Function(TransferProgress)? onProgress,
+      }) async {
+    final deviceConnected = await adbService.isDeviceConnected();
+    if (!deviceConnected) {
+      throw Exception('No hay dispositivo conectado');
+    }
 
-final monthStr = month.toString().padLeft(2, '0');
-final folderName = customLocalPath ??
-'$year-${monthStr}_${preserveMetadata ? 'METADATA_OK' : ''}';
-final localDir = Directory(folderName);
+    final remoteDir = await adbService.detectSDCameraPath();
+    if (remoteDir == null) {
+      throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
+    }
 
-if (!await localDir.exists()) {
-await localDir.create(recursive: true);
-}
+    final monthStr = month.toString().padLeft(2, '0');
+    final folderName = customLocalPath ??
+        '$year-${monthStr}_${preserveMetadata ? 'METADATA_OK' : ''}';
+    final localDir = Directory(folderName);
 
-final files = await adbService.listFiles(remoteDir);
-if (files.isEmpty) {
-throw Exception('No hay archivos en la carpeta remota');
-}
+    if (!await localDir.exists()) {
+      await localDir.create(recursive: true);
+    }
 
-final regex = RegExp(ADBService.filenameDateRegex);
-int total = 0;
+    final files = await adbService.listFiles(remoteDir);
+    if (files.isEmpty) {
+      throw Exception('No hay archivos en la carpeta remota');
+    }
 
-for (final filename in files) {
-final extension = path.extension(filename).toLowerCase();
-if (!ADBService.mediaExtensions.contains(extension)) continue;
+    final regex = RegExp(ADBService.filenameDateRegex);
 
-final match = regex.firstMatch(filename);
-if (match == null) continue;
+    // Filtrar archivos del mes específico
+    final filteredFiles = <String>[];
+    for (final filename in files) {
+      final extension = path.extension(filename).toLowerCase();
+      if (!ADBService.mediaExtensions.contains(extension)) continue;
 
-final fileDate = match.group(1)!;
-final fileYear = fileDate.substring(0, 4);
-final fileMonth = fileDate.substring(4, 6);
+      final match = regex.firstMatch(filename);
+      if (match == null) continue;
 
-if (fileYear == year.toString() && fileMonth == monthStr) {
-final remotePath = '$remoteDir/$filename';
-final localPath = path.join(localDir.path, filename);
+      final fileDate = match.group(1)!;
+      final fileYear = fileDate.substring(0, 4);
+      final fileMonth = fileDate.substring(4, 6);
 
-final result = await adbService.pullFile(remotePath, localPath,
-preserveMetadata: preserveMetadata);
+      if (fileYear == year.toString() && fileMonth == monthStr) {
+        filteredFiles.add(filename);
+      }
+    }
 
-if (result.contains('Error')) {
-print('⚠️ Error extrayendo $filename: $result');
-continue;
-}
+    // Copiar con progreso
+    for (int i = 0; i < filteredFiles.length; i++) {
+      final filename = filteredFiles[i];
+      final remotePath = '$remoteDir/$filename';
+      final localPath = path.join(localDir.path, filename);
 
-total++;
-print('✅ $filename copiado.');
-}
-}
+      // Notificar progreso
+      if (onProgress != null) {
+        onProgress(TransferProgress(
+          current: i + 1,
+          total: filteredFiles.length,
+          currentFile: filename,
+          type: TransferType.pull,
+        ));
+      }
 
-print('\n🎉 Proceso completado. $total archivos copiados.');
-}
+      final result = await adbService.pullFile(
+        remotePath,
+        localPath,
+        preserveMetadata: preserveMetadata,
+      );
+
+      if (result.contains('Error')) {
+        print('⚠️ Error extrayendo $filename: $result');
+        continue;
+      }
+
+      print('✅ $filename copiado.');
+
+      // Pequeña pausa
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    print('\n🎉 Proceso completado. ${filteredFiles.length} archivos copiados.');
+  }
 
 /// Extraer y organizar archivos de WhatsApp
 Future<void> extractAndOrganizeWhatsAppMedia(
