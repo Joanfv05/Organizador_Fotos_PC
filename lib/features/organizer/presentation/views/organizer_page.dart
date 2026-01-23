@@ -79,6 +79,7 @@ class _OrganizerPageContent extends StatelessWidget {
               onExtractTodayMedia: () => viewModel.extractTodayMedia(),
               onCopyAndOrganize: () => viewModel.copyAndOrganizeMedia(),
               onExtractSpecificDateMedia: (date) => viewModel.extractSpecificDateMedia(date),
+              onCopyMediaByMonth: (year, month) => viewModel.copyMediaByMonth(year, month),
             ),
           ),
         ],

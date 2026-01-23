@@ -10,7 +10,8 @@ class ActionPanel extends StatelessWidget {
   final VoidCallback onStartScrcpy;
   final VoidCallback onExtractTodayMedia;
   final VoidCallback onCopyAndOrganize;
-  final Function(DateTime) onExtractSpecificDateMedia; // NUEVO parámetro
+  final Function(DateTime) onExtractSpecificDateMedia;
+  final Function(int year, int month) onCopyMediaByMonth; // NUEVO parámetro
 
   const ActionPanel({
     super.key,
@@ -20,7 +21,8 @@ class ActionPanel extends StatelessWidget {
     required this.onStartScrcpy,
     required this.onExtractTodayMedia,
     required this.onCopyAndOrganize,
-    required this.onExtractSpecificDateMedia, // NUEVO parámetro
+    required this.onExtractSpecificDateMedia,
+    required this.onCopyMediaByMonth, // NUEVO parámetro
   });
 
   @override
@@ -107,7 +109,7 @@ class ActionPanel extends StatelessWidget {
                           ),
                         ),
 
-                        // NUEVO: Botón copiar de fecha específica
+                        // Botón copiar de fecha específica
                         ElevatedButton.icon(
                           onPressed: (isConnected == true && !isLoading)
                               ? () => _showDatePickerDialog(context)
@@ -116,6 +118,19 @@ class ActionPanel extends StatelessWidget {
                           label: const Text('Copiar de fecha específica'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // NUEVO: Botón copiar fotos/videos de mes específico
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showMonthPickerDialog(context)
+                              : null,
+                          icon: const Icon(Icons.calendar_month),
+                          label: const Text('Copiar de mes específico'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -199,7 +214,7 @@ class ActionPanel extends StatelessWidget {
     );
   }
 
-// Método para mostrar el diálogo de fecha:
+  // Método para mostrar el diálogo de fecha:
   void _showDatePickerDialog(BuildContext context) {
     showDatePicker(
       context: context,
@@ -223,5 +238,240 @@ class ActionPanel extends StatelessWidget {
         onExtractSpecificDateMedia(selectedDate);
       }
     });
+  }
+
+// Método para mostrar el diálogo de selección de mes
+  void _showMonthPickerDialog(BuildContext context) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
+    // Mostrar diálogo para seleccionar año
+    showDialog(
+      context: context,
+      builder: (context) {
+        int selectedYear = currentYear;
+        int? selectedMonth;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 400,
+                  maxHeight: MediaQuery
+                      .of(context)
+                      .size
+                      .height * 0.8, // Aumentamos a 80%
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Seleccionar mes',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Selección de año
+                      const Text('Año:', style: TextStyle(fontWeight: FontWeight
+                          .bold)),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: DropdownButton<int>(
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          // Sin línea inferior
+                          value: selectedYear,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedYear = value!;
+                              selectedMonth = null;
+                            });
+                          },
+                          items: List.generate(10, (index) {
+                            final year = currentYear - index;
+                            return DropdownMenuItem(
+                              value: year,
+                              child: Text('$year'),
+                            );
+                          }),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Selección de mes - Ahora con altura fija y scroll
+                      const Text('Mes:', style: TextStyle(fontWeight: FontWeight
+                          .bold)),
+                      const SizedBox(height: 8),
+
+                      // Opción 1: GridView con scroll (recomendada)
+                      SizedBox(
+                        height: 140,
+                        // Altura fija suficiente para 12 meses en 3 filas
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          primary: false,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4, // 4 columnas
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                            childAspectRatio: 2.0, // Cuadrados perfectos
+                          ),
+                          itemCount: 12,
+                          itemBuilder: (context, index) {
+                            final month = index + 1;
+                            final monthNames = [
+                              'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                              'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+                            ];
+
+                            return InkWell(
+                              onTap: () {
+                                setState(() {
+                                  selectedMonth = month;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: selectedMonth == month
+                                      ? Colors.indigo
+                                      : Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: selectedMonth == month
+                                        ? Colors.indigo
+                                        : Colors.grey[300]!,
+                                    width: selectedMonth == month ? 2 : 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        monthNames[index],
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                          color: selectedMonth == month
+                                              ? Colors.white
+                                              : Colors.grey[800],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '($month)',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: selectedMonth == month
+                                              ? Colors.white.withOpacity(0.8)
+                                              : Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Mostrar selección actual
+                      if (selectedMonth != null)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today, color: Colors.indigo,
+                                  size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Seleccionado: ${selectedMonth!.toString()
+                                      .padLeft(2, '0')} - ${[
+                                    'Enero',
+                                    'Febrero',
+                                    'Marzo',
+                                    'Abril',
+                                    'Mayo',
+                                    'Junio',
+                                    'Julio',
+                                    'Agosto',
+                                    'Septiembre',
+                                    'Octubre',
+                                    'Noviembre',
+                                    'Diciembre'
+                                  ][selectedMonth! - 1]} $selectedYear',
+                                  style: TextStyle(
+                                    color: Colors.indigo[800],
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      // Botones de acción
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: selectedMonth != null
+                                ? () {
+                              Navigator.pop(context);
+                              onCopyMediaByMonth(selectedYear, selectedMonth!);
+                            }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.indigo,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Seleccionar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

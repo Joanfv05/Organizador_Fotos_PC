@@ -227,6 +227,82 @@ class OrganizerRepository {
     }).toList();
   }
 
+  Future<void> copyMediaByMonth({
+    required int year,
+    required int month,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    final sdCameraPath = await adbService.detectSDCameraPath();
+    if (sdCameraPath == null) {
+      throw Exception('No se encontró la carpeta DCIM/Camera en la SD externa');
+    }
+
+    final executableDir = File(Platform.resolvedExecutable).parent;
+    final monthStr = month.toString().padLeft(2, '0');
+    final folderName = '${year}-${monthStr}';
+    final localBackupDir = Directory('${executableDir.path}/Fotos del Mes - $folderName');
+    await localBackupDir.create(recursive: true);
+
+    // Obtener lista de archivos
+    final files = await adbService.listFiles(sdCameraPath);
+
+    // Filtrar solo archivos de media
+    final mediaFiles = files.where((file) {
+      final ext = file.toLowerCase();
+      return ext.endsWith('.jpg') ||
+          ext.endsWith('.jpeg') ||
+          ext.endsWith('.png') ||
+          ext.endsWith('.mp4') ||
+          ext.endsWith('.mov') ||
+          ext.endsWith('.heic');
+    }).toList();
+
+    // Filtrar archivos del mes específico
+    final yearStr = year.toString();
+    final monthNumStr = monthStr;
+    final regex = RegExp(r'(?:[A-Z]+_)?(\d{4})(\d{2})(\d{2})_\d{6}.*');
+
+    final monthFiles = <String>[];
+    for (final file in mediaFiles) {
+      final match = regex.firstMatch(file);
+      if (match != null) {
+        final fileYear = match.group(1);
+        final fileMonth = match.group(2);
+
+        if (fileYear == yearStr && fileMonth == monthNumStr) {
+          monthFiles.add(file);
+        }
+      }
+    }
+
+    if (monthFiles.isEmpty) {
+      throw Exception('No se encontraron fotos o vídeos para $year-$monthStr');
+    }
+
+    // Copiar con progreso
+    for (int i = 0; i < monthFiles.length; i++) {
+      final file = monthFiles[i];
+      final remotePath = '$sdCameraPath/$file';
+      final localPath = '${localBackupDir.path}/$file';
+
+      // Notificar progreso
+      if (onProgress != null) {
+        onProgress(TransferProgress(
+          current: i + 1,
+          total: monthFiles.length,
+          currentFile: file,
+          type: TransferType.pull,
+        ));
+      }
+
+      // Copiar archivo
+      await adbService.pullFile(remotePath, localPath);
+
+      // Pequeña pausa
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
   // Métodos privados
   Future<List<FileItem>> _loadDirectories(String path) async {
     final dirs = await adbService.listDirectories(path);

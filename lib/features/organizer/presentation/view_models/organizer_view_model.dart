@@ -106,7 +106,7 @@ class OrganizerViewModel extends ChangeNotifier {
     }
   }
 
-  // ============ EXTRACCIÓN DE FOTOS DE HOY ============
+  // ============ EXTRACCIÓN DE FOTOS Y VIDEOS DE HOY ============
   Future<void> extractTodayMedia() async {
     if (isDeviceConnected != true) {
       errorMessage = '❌ No hay dispositivo conectado';
@@ -157,7 +157,7 @@ class OrganizerViewModel extends ChangeNotifier {
     }
   }
 
-  // ============ COPIAR Y ORGANIZAR MEDIA ============
+  // ============ COPIAR Y ORGANIZAR TODA LA SD ============
   Future<void> copyAndOrganizeMedia() async {
     if (isDeviceConnected != true) {
       errorMessage = '❌ No hay dispositivo conectado';
@@ -228,9 +228,7 @@ class OrganizerViewModel extends ChangeNotifier {
     }
   }
 
-  // En la clase OrganizerViewModel, añade este método:
-
-// ============ COPIAR DE FECHA ESPECÍFICA ============
+// ============ COPIAR FOTOS Y VIDEOS DE UNA FECHA ESPECÍFICA ============
   Future<void> extractSpecificDateMedia(DateTime? selectedDate) async {
     if (isDeviceConnected != true) {
       errorMessage = '❌ No hay dispositivo conectado';
@@ -293,6 +291,64 @@ class OrganizerViewModel extends ChangeNotifier {
       _setActionLoading(false);
       _clearProgress();
     }
+  }
+
+  // ============ COPIAR FOTOS Y VIDEOS UN DE MES ESPECÍFICO ============
+  Future<void> copyMediaByMonth(int year, int month) async {
+    if (isDeviceConnected != true) {
+      errorMessage = '❌ No hay dispositivo conectado';
+      notifyListeners();
+      return;
+    }
+
+    _setActionLoading(true);
+    _clearProgress();
+    currentOperation = 'Copiando fotos y vídeos del mes específico';
+
+    final monthName = _getMonthName(month);
+    destinationFolder = 'Fotos_${year}-${month.toString().padLeft(2, '0')}_$monthName';
+
+    _addLog('📷 INICIANDO COPIA DE MES ESPECÍFICO');
+    _addLog('📅 Mes seleccionado: $monthName $year');
+    _addLog('📁 Carpeta destino: ./$destinationFolder');
+    _addLog('🔍 Buscando fotos y vídeos del mes $month/$year en la SD...');
+
+    try {
+      await repository.copyMediaByMonth(
+        year: year,
+        month: month,
+        onProgress: (progress) {
+          currentProgress = progress;
+
+          _addLog('📥 Descargando: ${progress.currentFile} (${progress.current}/${progress.total})');
+
+          notifyListeners();
+        },
+      );
+
+      successMessage = '✅ Fotos y vídeos de $monthName $year copiados correctamente';
+      _addLog('🎉 COPIA COMPLETADA EXITOSAMENTE');
+      _addLog('📂 Archivos guardados en: ./$destinationFolder');
+      _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
+      _addLog('📊 Total copiado: ${currentProgress?.total ?? 0} archivos');
+
+    } catch (e) {
+      errorMessage = '❌ Error al copiar archivos del mes: $e';
+      _addLog('❌ ERROR DURANTE COPIA: $e');
+      _addLog('💡 Sugerencia: Asegúrate de que hay fotos o vídeos en $month/$year en la SD');
+    } finally {
+      _setActionLoading(false);
+      _clearProgress();
+    }
+  }
+
+  String _getMonthName(int month) {
+    const monthNames = {
+      1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+      5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+      9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+    };
+    return monthNames[month] ?? 'Mes $month';
   }
 
   // ============ MÉTODOS DE PROGRESO ============

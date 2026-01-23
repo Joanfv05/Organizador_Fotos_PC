@@ -1,45 +1,127 @@
-# Miscellaneous
+# .gitignore para Photo Organizer PC
+
+# ============ CARPETAS DE FOTOS/MEDIA (NO SUBIR) ============
+# Carpetas generadas por el organizador
+Fotos de la Tarjeta SD/
+Fotos del Mes - */
+LocalBackup/
+Fotos_*/
+
+# Carpetas específicas por fecha (YYYY-MM-DD)
+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Carpetas por mes (YYYY-MM)
+[0-9][0-9][0-9][0-9]-[0-9][0-9]_*/
+
+# Carpetas de WhatsApp
+WhatsApp Media/
+WhatsApp/
+
+# ============ MISCELÁNEO ============
 *.class
 *.log
 *.pyc
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# ============ INTELLIJ ============
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# ============ VS CODE ============
+# El directorio .vscode contiene configuraciones de lanzamiento y tareas
+# que configuras en VS Code y que pueden querer incluirse en control de versiones
 #.vscode/
 
-# Flutter/Dart/Pub related
+# ============ FLUTTER/DART/PUB ============
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Symbolication related
+# Flutter/Dart
+/ios/
+/android/
+/web/
+pubspec.lock
+
+# ============ ARCHIVOS FLUTTER ESPECÍFICOS ============
+.flutter/
+.fvm/
+
+# ============ ARCHIVOS TEMPORALES ============
+*.tmp
+*.temp
+*.pid
+
+# ============ ARCHIVOS DE CONFIGURACIÓN LOCAL ============
+config_local.dart
+.env
+.env.local
+.env.*.local
+
+# ============ ARCHIVOS ADB (SI ESTÁN EN ASSETS) ============
+# Excluir archivos ADB binarios si están incluidos
+assets/adb/windows/adb.exe
+assets/adb/linux/adb
+
+# ============ ARCHIVOS GENERADOS POR FLUTTER ============
+*.flutter-plugins
+*.flutter-plugins-dependencies
+
+# Directorios de análisis
+test/coverage_helper_test.dart
+
+# ============ ARCHIVOS DE DEPURACIÓN ============
+# Archivos de perfil/release
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Archivos de depuración
+flutter_*.png
+screenshots/
+performance/
+
+# ============ SYMBOLICATION ============
 app.*.symbols
 
-# Obfuscation related
+# ============ OBFUSCATION ============
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ============ ANDROID STUDIO ============
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ============ LOGS ============
+logs/
+
+# ============ ARCHIVOS DE EDITOR/IDE ============
+.project
+.classpath
+.settings/
+*.swo
+*~
+
+# ============ ARCHIVOS DE SISTEMA ============
+# Sistema operativo
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
