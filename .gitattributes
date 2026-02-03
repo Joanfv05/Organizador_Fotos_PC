@@ -1,0 +1,37 @@
+# .gitattributes
+# Configurar qué archivos deben mantener sus fines de línea originales
+
+# Binarios - no tratar como texto
+*.exe binary
+*.dll binary
+*.so binary
+*.tar.gz binary
+*.gz binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+
+# Archivos específicos que deben mantener LF (Linux/Unix)
+external/adb/linux/scrcpy.1 text eol=lf
+external/adb/linux/adb text eol=lf
+external/adb/linux/scrcpy text eol=lf
+
+# Batch files deben usar CRLF (Windows)
+*.bat text eol=crlf
+external/adb/windows/open_a_terminal_here.bat text eol=crlf
+external/adb/windows/scrcpy-console.bat text eol=crlf
+
+# Archivos de texto generales
+*.dart text
+*.yaml text
+*.yml text
+*.json text
+*.md text
+*.txt text
+*.xml text
+*.html text
+*.css text
+
+# Para todo lo demás, dejar que Git decida
+* text=auto
