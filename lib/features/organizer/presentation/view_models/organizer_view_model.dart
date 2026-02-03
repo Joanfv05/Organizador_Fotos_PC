@@ -18,7 +18,7 @@ class OrganizerViewModel extends ChangeNotifier {
   TransferProgress? currentProgress;
   String? currentOperation;
   List<String> operationLogs = [];
-  String? destinationFolder; // NUEVA: Carpeta destino actual
+  String? destinationFolder;
 
   OrganizerViewModel({required this.repository});
 
@@ -79,267 +79,195 @@ class OrganizerViewModel extends ChangeNotifier {
     }
   }
 
+  // ============ MÉTODO REUTILIZABLE PARA OPERACIONES ============
+  Future<void> _executeOperation({
+    required String operationName,
+    required Future<void> Function() operation,
+    required String successMessage,
+    required String errorPrefix,
+    String? destinationFolder,
+  }) async {
+    if (isDeviceConnected != true) {
+      _showError('❌ No hay dispositivo conectado');
+      return;
+    }
+
+    _setActionLoading(true);
+    _clearProgress();
+    currentOperation = operationName;
+    this.destinationFolder = destinationFolder;
+
+    _addLog('🔄 INICIANDO: $operationName');
+    if (destinationFolder != null) {
+      _addLog('📁 Carpeta destino: ./$destinationFolder');
+    }
+
+    try {
+      await operation();
+      _showSuccess(successMessage);
+    } catch (e) {
+      _showError('$errorPrefix: $e');
+    } finally {
+      _setActionLoading(false);
+      _clearProgress();
+    }
+  }
+
   // ============ SCRCPY ============
   Future<void> startScrcpy() async {
-    if (isDeviceConnected != true) {
-      errorMessage = '❌ No hay dispositivo conectado';
-      notifyListeners();
-      return;
-    }
-
-    _setActionLoading(true);
-    _clearProgress();
-    currentOperation = 'Iniciando control remoto';
-    _addLog('🖥️ Iniciando scrcpy (control remoto)...');
-
-    try {
-      await repository.startScrcpy();
-      successMessage = '✅ scrcpy iniciado correctamente';
-      _addLog('✅ Control remoto iniciado');
-      _addLog('💡 Puedes ver y controlar tu dispositivo desde la ventana que se abrió');
-    } catch (e) {
-      errorMessage = '❌ Error al iniciar scrcpy: $e';
-      _addLog('❌ Error iniciando control remoto: $e');
-    } finally {
-      _setActionLoading(false);
-      _clearProgress();
-    }
+    await _executeOperation(
+      operationName: 'Iniciando control remoto',
+      operation: () async {
+        await repository.startScrcpy();
+        _addLog('💡 Puedes ver y controlar tu dispositivo desde la ventana que se abrió');
+      },
+      successMessage: '✅ scrcpy iniciado correctamente',
+      errorPrefix: '❌ Error al iniciar scrcpy',
+    );
   }
 
-  // ============ EXTRACCIÓN DE FOTOS Y VIDEOS DE HOY ============
+  // ============ EXTRACCIÓN DE FOTOS DE HOY ============
   Future<void> extractTodayMedia() async {
-    if (isDeviceConnected != true) {
-      errorMessage = '❌ No hay dispositivo conectado';
-      notifyListeners();
-      return;
-    }
-
-    _setActionLoading(true);
-    _clearProgress();
-    currentOperation = 'Extrayendo fotos de hoy';
-
-    // Establecer carpeta destino con fecha actual
     final today = DateTime.now();
-    destinationFolder = 'Fotos_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final folderName = 'Fotos_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-    _addLog('📷 INICIANDO EXTRACCIÓN DE FOTOS DE HOY');
-    _addLog('📅 Fecha objetivo: ${today.day}/${today.month}/${today.year}');
-    _addLog('📁 Carpeta destino: ./$destinationFolder');
-    _addLog('🔍 Buscando fotos en la tarjeta SD...');
-
-    try {
-      await repository.extractTodayMedia(
-        onProgress: (progress) {
-          currentProgress = progress;
-
-          // Logs específicos según el tipo de operación
-          if (progress.type == TransferType.scanning) {
-            _addLog('🔍 Escaneando: ${progress.currentFile}');
-          } else {
-            _addLog('📥 Descargando: ${progress.currentFile} (${progress.current}/${progress.total})');
-          }
-
-          notifyListeners();
-        },
-      );
-
-      successMessage = '✅ Archivos de hoy extraídos correctamente';
-      _addLog('🎉 EXTRACCIÓN COMPLETADA EXITOSAMENTE');
-      _addLog('📂 Archivos guardados en: ./$destinationFolder');
-      _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
-
-    } catch (e) {
-      errorMessage = '❌ Error al extraer archivos: $e';
-      _addLog('❌ ERROR DURANTE EXTRACCIÓN: $e');
-    } finally {
-      _setActionLoading(false);
-      _clearProgress();
-    }
+    await _executeOperation(
+      operationName: 'Extrayendo fotos de hoy',
+      operation: () async {
+        await repository.extractTodayMedia(
+          onProgress: (progress) => _handleProgress(progress, 'hoy'),
+        );
+      },
+      successMessage: '✅ Archivos de hoy extraídos correctamente',
+      errorPrefix: '❌ Error al extraer archivos',
+      destinationFolder: folderName,
+    );
   }
 
-  // ============ COPIAR Y ORGANIZAR TODA LA SD ============
-  Future<void> copyAndOrganizeMedia({required int year}) async {  // ← AGREGAR PARÁMETRO REQUERIDO
-    if (isDeviceConnected != true) {
-      errorMessage = '❌ No hay dispositivo conectado';
-      notifyListeners();
-      return;
-    }
-
-    _setActionLoading(true);
-    _clearProgress();
-    currentOperation = 'Copiando y organizando media del año $year';  // ← ACTUALIZADO
-    destinationFolder = 'Fotos_$year';  // ← ACTUALIZADO
-
-    _addLog('🔄 INICIANDO COPIA Y ORGANIZACIÓN DEL AÑO $year');
-    _addLog('📁 Carpeta destino principal: ./$destinationFolder');
-    _addLog('📊 Los archivos se organizarán por mes dentro de esta carpeta');
-    _addLog('🔍 Detectando carpeta de fotos en la SD...');
-
-    try {
-      await repository.copyAndOrganizeMedia(
-        year: year,  // ← Pasar el año al repositorio
-        onProgress: (progress) {
-          currentProgress = progress;
-
-          // Logs detallados según el tipo de operación
-          switch (progress.type) {
-            case TransferType.scanning:
-              _addLog('🔍 ${progress.currentFile}');
-              break;
-            case TransferType.pull:
-              _addLog('📥 Descargando: ${progress.currentFile}');
-              if (progress.sourcePath != null && progress.destinationPath != null) {
-                _addLog('   ↪️ De: ${progress.sourcePath}');
-                _addLog('   ↩️ A: ${progress.destinationPath}');
-              }
-              break;
-            case TransferType.organizing:
-              _addLog('📂 Organizando: ${progress.currentFile}');
-              if (progress.destinationPath != null) {
-                _addLog('   📍 Mover a: ${progress.destinationPath}');
-              }
-              break;
-            default:
-              _addLog('⚙️ ${progress.currentFile}');
-          }
-
-          // Mostrar porcentaje cada 10 archivos o cuando cambia mucho
-          if (progress.current % 10 == 0 || progress.current == 1) {
-            _addLog('📊 Progreso: ${progress.current}/${progress.total} (${progress.percentage.toStringAsFixed(1)}%)');
-          }
-
-          notifyListeners();
-        },
-      );
-
-      successMessage = '✅ Archivos del año $year copiados y organizados correctamente';  // ← ACTUALIZADO
-      _addLog('🎉 PROCESO COMPLETADO EXITOSAMENTE');
-      _addLog('📂 Archivos organizados en: ./$destinationFolder');
-      _addLog('📅 Organización: Por mes (Ej: $year/01 - Enero, $year/02 - Febrero, etc.)');
-      _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
-
-    } catch (e) {
-      errorMessage = '❌ Error al copiar archivos del año $year: $e';  // ← ACTUALIZADO
-      _addLog('❌ ERROR DURANTE COPIA: $e');
-      _addLog('💡 Sugerencia: Verifica que la tarjeta SD tenga fotos del año $year');
-    } finally {
-      _setActionLoading(false);
-      _clearProgress();
-    }
+  // ============ COPIAR Y ORGANIZAR POR AÑO ============
+  Future<void> copyAndOrganizeMedia({required int year}) async {
+    await _executeOperation(
+      operationName: 'Copiando y organizando media del año $year',
+      operation: () async {
+        await repository.copyAndOrganizeMedia(
+          year: year,
+          onProgress: (progress) => _handleProgress(progress, 'año $year'),
+        );
+      },
+      successMessage: '✅ Archivos del año $year copiados y organizados correctamente',
+      errorPrefix: '❌ Error al copiar archivos del año $year',
+      destinationFolder: 'Fotos_$year',
+    );
   }
 
-// ============ COPIAR FOTOS Y VIDEOS DE UNA FECHA ESPECÍFICA ============
+  // ============ COPIAR DE FECHA ESPECÍFICA ============
   Future<void> extractSpecificDateMedia(DateTime? selectedDate) async {
-    if (isDeviceConnected != true) {
-      errorMessage = '❌ No hay dispositivo conectado';
-      notifyListeners();
-      return;
-    }
-
     if (selectedDate == null) {
-      errorMessage = '❌ Por favor selecciona una fecha';
-      notifyListeners();
+      _showError('❌ Por favor selecciona una fecha');
       return;
     }
 
-    _setActionLoading(true);
-    _clearProgress();
-    currentOperation = 'Copiando fotos de fecha específica';
     final dateStr = '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}';
-    destinationFolder = 'Fotos_${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+    final folderName = 'Fotos_${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
 
-    _addLog('📷 INICIANDO COPIA DE FECHA ESPECÍFICA');
-    _addLog('📅 Fecha seleccionada: $dateStr');
-    _addLog('📁 Carpeta destino: ./$destinationFolder');
-    _addLog('🔍 Buscando archivos en la SD...');
+    await _executeOperation(
+      operationName: 'Copiando fotos de fecha específica',
+      operation: () async {
+        final matchingFiles = await repository.findFilesByDate(selectedDate);
+        _addLog('📊 Encontrados ${matchingFiles.length} archivos para la fecha');
 
-    try {
-      // Primero buscar archivos
-      final matchingFiles = await repository.findFilesByDate(selectedDate);
-      _addLog('📊 Encontrados ${matchingFiles.length} archivos para la fecha');
+        if (matchingFiles.isEmpty) {
+          _showSuccess('ℹ️ No se encontraron archivos para la fecha $dateStr');
+          return;
+        }
 
-      if (matchingFiles.isEmpty) {
-        successMessage = 'ℹ️ No se encontraron archivos para la fecha $dateStr';
-        _addLog('ℹ️ No hay archivos para esta fecha');
-      } else {
-        // Luego extraer
         await repository.extractMediaFromSpecificDate(
           selectedDate,
-          onProgress: (progress) {
-            currentProgress = progress;
-
-            if (progress.type == TransferType.scanning) {
-              _addLog('🔍 ${progress.currentFile}');
-            } else {
-              _addLog('📥 Descargando: ${progress.currentFile} (${progress.current}/${progress.total})');
-            }
-
-            notifyListeners();
-          },
+          onProgress: (progress) => _handleProgress(progress, 'fecha $dateStr'),
         );
-
-        successMessage = '✅ Archivos de $dateStr copiados correctamente';
-        _addLog('🎉 COPIA COMPLETADA EXITOSAMENTE');
-        _addLog('📂 Archivos guardados en: ./$destinationFolder');
-        _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
-      }
-    } catch (e) {
-      errorMessage = '❌ Error al copiar archivos: $e';
-      _addLog('❌ ERROR DURANTE COPIA: $e');
-      _addLog('💡 Sugerencia: Verifica que la tarjeta SD tenga archivos con fecha $dateStr');
-    } finally {
-      _setActionLoading(false);
-      _clearProgress();
-    }
+      },
+      successMessage: '✅ Archivos de $dateStr copiados correctamente',
+      errorPrefix: '❌ Error al copiar archivos',
+      destinationFolder: folderName,
+    );
   }
 
-  // ============ COPIAR FOTOS Y VIDEOS UN DE MES ESPECÍFICO ============
+  // ============ COPIAR DE MES ESPECÍFICO ============
   Future<void> copyMediaByMonth(int year, int month) async {
-    if (isDeviceConnected != true) {
-      errorMessage = '❌ No hay dispositivo conectado';
-      notifyListeners();
-      return;
-    }
-
-    _setActionLoading(true);
-    _clearProgress();
-    currentOperation = 'Copiando fotos y vídeos del mes específico';
-
     final monthName = _getMonthName(month);
-    destinationFolder = 'Fotos_${year}-${month.toString().padLeft(2, '0')}_$monthName';
+    final folderName = 'Fotos_${year}-${month.toString().padLeft(2, '0')}_$monthName';
 
-    _addLog('📷 INICIANDO COPIA DE MES ESPECÍFICO');
-    _addLog('📅 Mes seleccionado: $monthName $year');
-    _addLog('📁 Carpeta destino: ./$destinationFolder');
-    _addLog('🔍 Buscando fotos y vídeos del mes $month/$year en la SD...');
+    await _executeOperation(
+      operationName: 'Copiando fotos y vídeos del mes específico',
+      operation: () async {
+        await repository.copyMediaByMonth(
+          year: year,
+          month: month,
+          onProgress: (progress) => _handleProgress(progress, 'mes $monthName $year'),
+        );
+      },
+      successMessage: '✅ Fotos y vídeos de $monthName $year copiados correctamente',
+      errorPrefix: '❌ Error al copiar archivos del mes',
+      destinationFolder: folderName,
+    );
+  }
 
-    try {
-      await repository.copyMediaByMonth(
-        year: year,
-        month: month,
-        onProgress: (progress) {
-          currentProgress = progress;
+  // ============ MANEJO DE PROGRESO REUTILIZABLE ============
+  void _handleProgress(TransferProgress progress, String context) {
+    currentProgress = progress;
 
-          _addLog('📥 Descargando: ${progress.currentFile} (${progress.current}/${progress.total})');
-
-          notifyListeners();
-        },
-      );
-
-      successMessage = '✅ Fotos y vídeos de $monthName $year copiados correctamente';
-      _addLog('🎉 COPIA COMPLETADA EXITOSAMENTE');
-      _addLog('📂 Archivos guardados en: ./$destinationFolder');
-      _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
-      _addLog('📊 Total copiado: ${currentProgress?.total ?? 0} archivos');
-
-    } catch (e) {
-      errorMessage = '❌ Error al copiar archivos del mes: $e';
-      _addLog('❌ ERROR DURANTE COPIA: $e');
-      _addLog('💡 Sugerencia: Asegúrate de que hay fotos o vídeos en $month/$year en la SD');
-    } finally {
-      _setActionLoading(false);
-      _clearProgress();
+    switch (progress.type) {
+      case TransferType.scanning:
+        _addLog('🔍 ${progress.currentFile}');
+        break;
+      case TransferType.pull:
+        _addLog('📥 Descargando: ${progress.currentFile}');
+        if (progress.sourcePath != null && progress.destinationPath != null) {
+          _addLog('   ↪️ De: ${progress.sourcePath}');
+          _addLog('   ↩️ A: ${progress.destinationPath}');
+        }
+        break;
+      case TransferType.organizing:
+        _addLog('📂 Organizando: ${progress.currentFile}');
+        if (progress.destinationPath != null) {
+          _addLog('   📍 Mover a: ${progress.destinationPath}');
+        }
+        break;
+      default:
+        _addLog('⚙️ ${progress.currentFile}');
     }
+
+    if (progress.current % 10 == 0 || progress.current == 1) {
+      _addLog('📊 Progreso: ${progress.current}/${progress.total} (${progress.percentage.toStringAsFixed(1)}%)');
+    }
+
+    notifyListeners();
+  }
+
+  // ============ HELPERS DE MENSAJES ============
+  void _showSuccess(String message) {
+    successMessage = message;
+    _addLog('🎉 $message');
+    _clearMessageAfterDelay(successMessage, true);
+    notifyListeners();
+  }
+
+  void _showError(String message) {
+    errorMessage = message;
+    _addLog('❌ $message');
+    _clearMessageAfterDelay(errorMessage, false);
+    notifyListeners();
+  }
+
+  void _clearMessageAfterDelay(String? message, bool isSuccess) {
+    Future.delayed(Duration(seconds: isSuccess ? 3 : 5), () {
+      if (isSuccess && successMessage == message) {
+        successMessage = null;
+      } else if (!isSuccess && errorMessage == message) {
+        errorMessage = null;
+      }
+      notifyListeners();
+    });
   }
 
   String _getMonthName(int month) {
@@ -367,7 +295,6 @@ class OrganizerViewModel extends ChangeNotifier {
     final now = DateTime.now();
     final timestamp = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
 
-    // Añadir emojis automáticamente según el contenido
     String formattedMessage = message;
     if (!message.startsWith(RegExp(r'[🔌📁📂📷📅📁📊🔍📥📂⚙️🎉❌✅💡📍↪️↩️🔄🖥️📝]'))) {
       if (message.toLowerCase().contains('error') || message.contains('❌')) {
@@ -389,7 +316,6 @@ class OrganizerViewModel extends ChangeNotifier {
 
     operationLogs.add('[$timestamp] $formattedMessage');
 
-    // Mantener solo los últimos 100 logs (más para mejor visibilidad)
     if (operationLogs.length > 100) {
       operationLogs.removeAt(0);
     }
@@ -456,7 +382,6 @@ class OrganizerViewModel extends ChangeNotifier {
     _addLog('✅ $message');
     notifyListeners();
 
-    // Limpiar mensaje después de 3 segundos
     Future.delayed(const Duration(seconds: 3), () {
       if (successMessage == message) {
         successMessage = null;
@@ -470,7 +395,6 @@ class OrganizerViewModel extends ChangeNotifier {
     _addLog('❌ $message');
     notifyListeners();
 
-    // Limpiar mensaje después de 5 segundos
     Future.delayed(const Duration(seconds: 5), () {
       if (errorMessage == message) {
         errorMessage = null;

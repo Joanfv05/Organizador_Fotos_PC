@@ -11,7 +11,7 @@ class ActionPanel extends StatelessWidget {
   final VoidCallback onExtractTodayMedia;
   final Function(int year) onCopyAndOrganize;
   final Function(DateTime) onExtractSpecificDateMedia;
-  final Function(int year, int month) onCopyMediaByMonth; // NUEVO parámetro
+  final Function(int year, int month) onCopyMediaByMonth;
 
   const ActionPanel({
     super.key,
@@ -22,7 +22,7 @@ class ActionPanel extends StatelessWidget {
     required this.onExtractTodayMedia,
     required this.onCopyAndOrganize,
     required this.onExtractSpecificDateMedia,
-    required this.onCopyMediaByMonth, // NUEVO parámetro
+    required this.onCopyMediaByMonth,
   });
 
   @override
@@ -44,7 +44,7 @@ class ActionPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Acciones del dispositivo',
+                      'Acciones del dispositivo con la SD',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -98,10 +98,10 @@ class ActionPanel extends StatelessWidget {
                           message: 'Copia archivos de un año específico desde la SD y los organiza por mes',
                           child: ElevatedButton.icon(
                             onPressed: (isConnected == true && !isLoading)
-                                ? () => _showYearPickerDialog(context)  // ← NUEVO: Mostrar selector de año
+                                ? () => _showYearPickerDialog(context)
                                 : null,
                             icon: const Icon(Icons.content_copy),
-                            label: const Text('Copiar y organizar media por año'),  // ← TEXTO ACTUALIZADO
+                            label: const Text('Copiar y organizar media por año'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
                               foregroundColor: Colors.white,
@@ -122,7 +122,7 @@ class ActionPanel extends StatelessWidget {
                           ),
                         ),
 
-                        // NUEVO: Botón copiar fotos/videos de mes específico
+                        // Botón copiar fotos/videos de mes específico
                         ElevatedButton.icon(
                           onPressed: (isConnected == true && !isLoading)
                               ? () => _showMonthPickerDialog(context)
@@ -147,12 +147,10 @@ class ActionPanel extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: isConnected! ? Colors.green.shade50 : Colors
-                              .red.shade50,
+                          color: isConnected! ? Colors.green.shade50 : Colors.red.shade50,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isConnected! ? Colors.green.shade200 : Colors
-                                .red.shade200,
+                            color: isConnected! ? Colors.green.shade200 : Colors.red.shade200,
                           ),
                         ),
                         child: Row(
@@ -214,7 +212,8 @@ class ActionPanel extends StatelessWidget {
     );
   }
 
-  // Método para mostrar el diálogo de fecha:
+  // ============ DIÁLOGOS ============
+
   void _showDatePickerDialog(BuildContext context) {
     showDatePicker(
       context: context,
@@ -240,7 +239,6 @@ class ActionPanel extends StatelessWidget {
     });
   }
 
-  // Método para mostrar diálogo de selección de año
   void _showYearPickerDialog(BuildContext context) {
     final now = DateTime.now();
     final currentYear = now.year;
@@ -276,7 +274,7 @@ class ActionPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Selección de año
+                      // Selector de año
                       Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey[300]!),
@@ -287,11 +285,7 @@ class ActionPanel extends StatelessWidget {
                           isExpanded: true,
                           underline: const SizedBox(),
                           value: selectedYear,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedYear = value!;
-                            });
-                          },
+                          onChanged: (value) => setState(() => selectedYear = value!),
                           items: List.generate(10, (index) {
                             final year = currentYear - index;
                             return DropdownMenuItem(
@@ -304,10 +298,9 @@ class ActionPanel extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // Mostrar selección actual
+                      // Información de selección
                       Container(
                         padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(8),
@@ -365,244 +358,269 @@ class ActionPanel extends StatelessWidget {
           },
         );
       },
-    ).then((_) {
-      // El ViewModel ya manejará la llamada al repositorio con el año seleccionado
-      // Necesitarás modificar el ViewModel para almacenar el año seleccionado
-    });
+    );
   }
 
-// Método para mostrar el diálogo de selección de mes
   void _showMonthPickerDialog(BuildContext context) {
     final now = DateTime.now();
     final currentYear = now.year;
 
-    // Mostrar diálogo para seleccionar año
     showDialog(
       context: context,
-      builder: (context) {
-        int selectedYear = currentYear;
-        int? selectedMonth;
+      builder: (context) => _YearMonthDialog(
+        currentYear: currentYear,
+        onSelected: onCopyMediaByMonth,
+        title: 'Seleccionar mes',
+        buttonText: 'Seleccionar',
+      ),
+    );
+  }
+}
 
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 400,
-                  maxHeight: MediaQuery
-                      .of(context)
-                      .size
-                      .height * 0.8, // Aumentamos a 80%
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Seleccionar mes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+// ============ COMPONENTES REUTILIZABLES ============
 
-                      // Selección de año
-                      const Text('Año:', style: TextStyle(fontWeight: FontWeight
-                          .bold)),
-                      const SizedBox(height: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: DropdownButton<int>(
-                          isExpanded: true,
-                          underline: const SizedBox(),
-                          // Sin línea inferior
-                          value: selectedYear,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedYear = value!;
-                              selectedMonth = null;
-                            });
-                          },
-                          items: List.generate(10, (index) {
-                            final year = currentYear - index;
-                            return DropdownMenuItem(
-                              value: year,
-                              child: Text('$year'),
-                            );
-                          }),
-                        ),
-                      ),
+class _YearMonthDialog extends StatefulWidget {
+  final int currentYear;
+  final Function(int, int) onSelected;
+  final String title;
+  final String buttonText;
 
-                      const SizedBox(height: 20),
+  const _YearMonthDialog({
+    required this.currentYear,
+    required this.onSelected,
+    required this.title,
+    required this.buttonText,
+  });
 
-                      // Selección de mes - Ahora con altura fija y scroll
-                      const Text('Mes:', style: TextStyle(fontWeight: FontWeight
-                          .bold)),
-                      const SizedBox(height: 8),
+  @override
+  State<_YearMonthDialog> createState() => __YearMonthDialogState();
+}
 
-                      // Opción 1: GridView con scroll (recomendada)
-                      SizedBox(
-                        height: 140,
-                        // Altura fija suficiente para 12 meses en 3 filas
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          primary: false,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4, // 4 columnas
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 4,
-                            childAspectRatio: 2.0, // Cuadrados perfectos
-                          ),
-                          itemCount: 12,
-                          itemBuilder: (context, index) {
-                            final month = index + 1;
-                            final monthNames = [
-                              'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-                              'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-                            ];
+class __YearMonthDialogState extends State<_YearMonthDialog> {
+  late int selectedYear;
+  int? selectedMonth;
 
-                            return InkWell(
-                              onTap: () {
-                                setState(() {
-                                  selectedMonth = month;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: selectedMonth == month
-                                      ? Colors.indigo
-                                      : Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: selectedMonth == month
-                                        ? Colors.indigo
-                                        : Colors.grey[300]!,
-                                    width: selectedMonth == month ? 2 : 1,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        monthNames[index],
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 13,
-                                          color: selectedMonth == month
-                                              ? Colors.white
-                                              : Colors.grey[800],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '($month)',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: selectedMonth == month
-                                              ? Colors.white.withOpacity(0.8)
-                                              : Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+  @override
+  void initState() {
+    super.initState();
+    selectedYear = widget.currentYear;
+  }
 
-                      const SizedBox(height: 16),
-
-                      // Mostrar selección actual
-                      if (selectedMonth != null)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.indigo.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today, color: Colors.indigo,
-                                  size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Seleccionado: ${selectedMonth!.toString()
-                                      .padLeft(2, '0')} - ${[
-                                    'Enero',
-                                    'Febrero',
-                                    'Marzo',
-                                    'Abril',
-                                    'Mayo',
-                                    'Junio',
-                                    'Julio',
-                                    'Agosto',
-                                    'Septiembre',
-                                    'Octubre',
-                                    'Noviembre',
-                                    'Diciembre'
-                                  ][selectedMonth! - 1]} $selectedYear',
-                                  style: TextStyle(
-                                    color: Colors.indigo[800],
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      const SizedBox(height: 16),
-
-                      // Botones de acción
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancelar'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: selectedMonth != null
-                                ? () {
-                              Navigator.pop(context);
-                              onCopyMediaByMonth(selectedYear, selectedMonth!);
-                            }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Seleccionar'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            );
-          },
-        );
-      },
+              const SizedBox(height: 16),
+
+              // Selector de año
+              _buildYearSelector(),
+              const SizedBox(height: 20),
+
+              // Selector de mes
+              _buildMonthSelector(),
+              const SizedBox(height: 16),
+
+              // Información de selección
+              if (selectedMonth != null) _buildSelectionInfo(),
+              const SizedBox(height: 16),
+
+              // Botones
+              _buildActionButtons(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYearSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Año:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: DropdownButton<int>(
+            isExpanded: true,
+            underline: const SizedBox(),
+            value: selectedYear,
+            onChanged: (value) {
+              setState(() {
+                selectedYear = value!;
+                selectedMonth = null;
+              });
+            },
+            items: List.generate(10, (index) {
+              final year = widget.currentYear - index;
+              return DropdownMenuItem(
+                value: year,
+                child: Text('$year'),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Mes:', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 140,
+          child: GridView.builder(
+            shrinkWrap: true,
+            primary: false,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              childAspectRatio: 2.0,
+            ),
+            itemCount: 12,
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final monthNames = [
+                'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+              ];
+
+              return InkWell(
+                onTap: () => setState(() => selectedMonth = month),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: selectedMonth == month
+                        ? Colors.indigo
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: selectedMonth == month
+                          ? Colors.indigo
+                          : Colors.grey[300]!,
+                      width: selectedMonth == month ? 2 : 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          monthNames[index],
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                            color: selectedMonth == month
+                                ? Colors.white
+                                : Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '($month)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: selectedMonth == month
+                                ? Colors.white.withOpacity(0.8)
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectionInfo() {
+    final monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today, color: Colors.indigo, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Seleccionado: ${selectedMonth!.toString().padLeft(2, '0')} - '
+                  '${monthNames[selectedMonth! - 1]} $selectedYear',
+              style: TextStyle(
+                color: Colors.indigo[800],
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: selectedMonth != null
+              ? () {
+            Navigator.pop(context);
+            widget.onSelected(selectedYear, selectedMonth!);
+          }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(widget.buttonText),
+        ),
+      ],
     );
   }
 }

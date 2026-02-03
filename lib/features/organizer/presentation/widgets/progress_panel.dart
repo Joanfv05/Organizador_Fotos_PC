@@ -233,10 +233,10 @@ class ProgressPanel extends StatelessWidget {
 
         // Archivo actual
         _buildInfoCard(
-          icon: Icons.insert_drive_file,
-          title: 'Archivo actual',
-          content: progress.fileInfo,
-          color: Colors.grey.shade50),
+            icon: Icons.insert_drive_file,
+            title: 'Archivo actual',
+            content: progress.fileInfo,
+            color: Colors.grey.shade50),
       ],
     );
   }
@@ -272,8 +272,8 @@ class ProgressPanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.grey[50],
             borderRadius: BorderRadius.circular(8),
-    border: Border.all(color: Colors.grey[200]!),
-    ),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
           child: ListView.builder(
             padding: const EdgeInsets.all(8),
             reverse: true,
