@@ -76,40 +76,38 @@ class OrganizerRepository {
 
   // ============ SCRCPY ============
   Future<void> startScrcpy() async {
+    final currentDir = Directory.current.path;
+
     if (Platform.isWindows) {
-      // Buscar scrcpy en external/adb/scrcpy-win64-v3.3.4/
-      final currentDir = Directory.current.path;
-      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'scrcpy-win64-v3.3.4', 'scrcpy.exe');
-
-      print('🔍 Buscando scrcpy en: $scrcpyPath');
-
-      final scrcpyFile = File(scrcpyPath);
-      if (!await scrcpyFile.exists()) {
-        throw Exception('scrcpy.exe no encontrado en: $scrcpyPath');
-      }
-
-      print('✅ scrcpy encontrado (${await scrcpyFile.length()} bytes)');
-
-      print('🚀 Iniciando scrcpy...');
-
-      await Process.start(
-        scrcpyPath,
-        ['--always-on-top', '--max-size=1920'],
-        mode: ProcessStartMode.detachedWithStdio,
-      );
+      // Windows: external/adb/windows/scrcpy.exe
+      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'windows', 'scrcpy.exe');
+      await _startScrcpyWithPath(scrcpyPath, ['--always-on-top', '--max-size=1920']);
 
     } else if (Platform.isLinux) {
-      final homeDir = Platform.environment['HOME']!;
-      final scrcpyPath = '$homeDir/scrcpy-linux-x86_64-v3.3.4/scrcpy';
+      // Linux: external/adb/linux/scrcpy
+      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'linux', 'scrcpy');
+      await _startScrcpyWithPath(scrcpyPath, ['--always-on-top', '--max-size=1920']);
+    }
+  }
 
-      if (!await File(scrcpyPath).exists()) {
-        throw Exception('scrcpy no encontrado en $scrcpyPath');
-      }
+  Future<void> _startScrcpyWithPath(String scrcpyPath, List<String> args) async {
+    final scrcpyFile = File(scrcpyPath);
 
-      await Process.run('bash', [
-        '-c',
-        'cd "$homeDir/scrcpy-linux-x86_64-v3.3.4" && ./scrcpy --always-on-top --max-size=1920'
-      ], runInShell: true);
+    if (!await scrcpyFile.exists()) {
+      throw Exception('scrcpy no encontrado en: $scrcpyPath');
+    }
+
+    // Dar permisos en Linux
+    if (!Platform.isWindows) {
+      await Process.run('chmod', ['+x', scrcpyPath]);
+    }
+
+    if (Platform.isWindows) {
+      await Process.start(scrcpyPath, args, mode: ProcessStartMode.detachedWithStdio);
+    } else {
+      // Linux necesita ejecutar desde su directorio
+      final scrcpyDir = Directory(path.dirname(scrcpyPath));
+      await Process.run(scrcpyPath, args, workingDirectory: scrcpyDir.path);
     }
   }
 

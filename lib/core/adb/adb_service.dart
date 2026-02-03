@@ -225,86 +225,69 @@ class ADBService {
   }
 
   // =========================
-  // RESOLVER ADB (Método interno)
+  // RESOLVER ADB (Método interno) - VERSIÓN UNIFICADA
   // =========================
   Future<String> _resolveAdb() async {
-    // 1. Primero intentar ADB del sistema
+    // 1. Primero intentar ADB del sistema (opcional)
     if (await isAdbAvailable) {
       return 'adb';
     }
 
-    // 2. Para Windows: buscar en rutas relativas
-    if (Platform.isWindows) {
-      final windowsPath = await _findWindowsAdbRelative();
-      if (windowsPath != null) {
-        return windowsPath;
-      }
+    // 2. Buscar en external/adb/ según plataforma
+    final externalPath = await _findExternalAdb();
+    if (externalPath != null) {
+      return externalPath;
     }
 
-    // 3. Fallback a assets (solo para Linux - NO MODIFICADO)
-    if (await _hasAssetAdb()) {
-      return await _getAssetAdbPath();
-    }
-
-    throw Exception('ADB no disponible');
+    throw Exception('ADB no disponible en external/adb/');
   }
 
-  // ============ BUSCAR ADB EN RUTAS RELATIVAS PARA WINDOWS ============
-  Future<String?> _findWindowsAdbRelative() async {
-    // Lista de posibles ubicaciones (probadas en orden)
-    final possiblePaths = [
-      // 1. En la nueva ruta: external/adb/scrcpy-win64-v3.3.4/
-      _getScrcpyFolderAdbPath(),
+  // ============ BUSCAR ADB EN EXTERNAL/ PARA AMBAS PLATAFORMAS ============
+  Future<String?> _findExternalAdb() async {
+    final currentDir = Directory.current.path;
 
-      // 2. Junto al ejecutable (para releases)
-      _getExecutableDirAdbPath(),
+    if (Platform.isWindows) {
+      // Windows: external/adb/windows/adb.exe
+      final windowsPath = path.join(currentDir, 'external', 'adb', 'windows', 'adb.exe');
+      final windowsFile = File(windowsPath);
 
-      // 3. En external/adb/windows/ (ruta anterior por compatibilidad)
-      _getExternalAdbPathFromCurrentDir(),
-    ];
+      if (await windowsFile.exists()) {
+        return windowsPath;
+      }
 
-    for (final path in possiblePaths) {
-      if (path != null) {
-        final file = File(path);
-        if (await file.exists()) {
-          return path;
+      // Backup: buscar junto al ejecutable (para releases)
+      try {
+        final executablePath = Platform.resolvedExecutable;
+        final executableDir = File(executablePath).parent;
+        final releasePath = path.join(executableDir.path, 'adb', 'windows', 'adb.exe');
+        final releaseFile = File(releasePath);
+
+        if (await releaseFile.exists()) {
+          return releasePath;
         }
+      } catch (e) {
+        // Ignorar error
+      }
+
+    } else {
+      // Linux: external/adb/linux/adb
+      final linuxPath = path.join(currentDir, 'external', 'adb', 'linux', 'adb');
+      final linuxFile = File(linuxPath);
+
+      if (await linuxFile.exists()) {
+        // Dar permisos de ejecución
+        await Process.run('chmod', ['+x', linuxPath]);
+        return linuxPath;
       }
     }
 
     return null;
   }
 
-  // NUEVO: Buscar ADB en la carpeta scrcpy
-  String? _getScrcpyFolderAdbPath() {
-    try {
-      final currentDir = Directory.current.path;
-      return path.join(currentDir, 'external', 'adb', 'scrcpy-win64-v3.3.4', 'adb.exe');
-    } catch (e) {
-      return null;
-    }
-  }
+  // ============ MÉTODOS DEPRECADOS (se pueden eliminar eventualmente) ============
+  // Estos métodos ya no son necesarios porque usamos external/,
+  // pero los mantengo por compatibilidad
 
-  String? _getExecutableDirAdbPath() {
-    try {
-      final executablePath = Platform.resolvedExecutable;
-      final executableDir = File(executablePath).parent;
-      return path.join(executableDir.path, 'adb', 'scrcpy-win64-v3.3.4', 'adb.exe');
-    } catch (e) {
-      return null;
-    }
-  }
-
-  String? _getExternalAdbPathFromCurrentDir() {
-    try {
-      final currentDir = Directory.current.path;
-      return path.join(currentDir, 'external', 'adb', 'windows', 'adb.exe');
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // ============ MÉTODOS ORIGINALES PARA LINUX (NO MODIFICADOS) ============
   Future<bool> _hasAssetAdb() async {
     try {
       final assetPath = Platform.isWindows
