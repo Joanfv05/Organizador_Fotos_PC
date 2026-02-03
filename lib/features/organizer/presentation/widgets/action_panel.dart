@@ -9,7 +9,7 @@ class ActionPanel extends StatelessWidget {
   final VoidCallback onCheckConnection;
   final VoidCallback onStartScrcpy;
   final VoidCallback onExtractTodayMedia;
-  final VoidCallback onCopyAndOrganize;
+  final Function(int year) onCopyAndOrganize;
   final Function(DateTime) onExtractSpecificDateMedia;
   final Function(int year, int month) onCopyMediaByMonth; // NUEVO parámetro
 
@@ -95,13 +95,13 @@ class ActionPanel extends StatelessWidget {
 
                         // Botón copiar y organizar (con tooltip)
                         Tooltip(
-                          message: 'Copia archivos desde la SD y los organiza por mes',
+                          message: 'Copia archivos de un año específico desde la SD y los organiza por mes',
                           child: ElevatedButton.icon(
                             onPressed: (isConnected == true && !isLoading)
-                                ? onCopyAndOrganize
+                                ? () => _showYearPickerDialog(context)  // ← NUEVO: Mostrar selector de año
                                 : null,
                             icon: const Icon(Icons.content_copy),
-                            label: const Text('Copiar y organizar media'),
+                            label: const Text('Copiar y organizar media por año'),  // ← TEXTO ACTUALIZADO
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
                               foregroundColor: Colors.white,
@@ -237,6 +237,137 @@ class ActionPanel extends StatelessWidget {
       if (selectedDate != null) {
         onExtractSpecificDateMedia(selectedDate);
       }
+    });
+  }
+
+  // Método para mostrar diálogo de selección de año
+  void _showYearPickerDialog(BuildContext context) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        int selectedYear = currentYear;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Seleccionar año',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        '¿De qué año quieres copiar y organizar las fotos?',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Selección de año
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: DropdownButton<int>(
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          value: selectedYear,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedYear = value!;
+                            });
+                          },
+                          items: List.generate(10, (index) {
+                            final year = currentYear - index;
+                            return DropdownMenuItem(
+                              value: year,
+                              child: Text('$year'),
+                            );
+                          }),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Mostrar selección actual
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, color: Colors.orange, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Se copiarán fotos y vídeos del año $selectedYear',
+                                style: TextStyle(
+                                  color: Colors.orange[800],
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Botones de acción
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              onCopyAndOrganize(selectedYear);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('Seleccionar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).then((_) {
+      // El ViewModel ya manejará la llamada al repositorio con el año seleccionado
+      // Necesitarás modificar el ViewModel para almacenar el año seleccionado
     });
   }
 

@@ -94,6 +94,7 @@ class OrganizerRepository {
 
   // Copiar y organizar media
   Future<void> copyAndOrganizeMedia({
+    required int year,  // ← NUEVO: AÑO REQUERIDO
     Function(TransferProgress)? onProgress,
   }) async {
     final sdCameraPath = await adbService.detectSDCameraPath();
@@ -102,22 +103,43 @@ class OrganizerRepository {
     }
 
     final executableDir = File(Platform.resolvedExecutable).parent;
-    final localBackupDir = Directory('${executableDir.path}/Fotos de la Tarjeta SD');
+
+    // ← MODIFICADO: Nombre de carpeta incluye el año
+    final localBackupDir = Directory('${executableDir.path}/Fotos_$year');
     await localBackupDir.create(recursive: true);
 
     // Obtener lista de archivos primero
     final files = await adbService.listFiles(sdCameraPath);
 
-    // Filtrar solo archivos de media
-    final mediaFiles = files.where((file) {
+    // Filtrar solo archivos de media DEL AÑO ESPECÍFICO
+    final mediaFiles = <String>[];
+    final yearStr = year.toString();
+    final regex = RegExp(r'(?:[A-Z]+_)?(\d{4})(\d{2})(\d{2})_\d{6}.*');
+
+    for (final file in files) {
       final ext = file.toLowerCase();
-      return ext.endsWith('.jpg') ||
+      final isMedia = ext.endsWith('.jpg') ||
           ext.endsWith('.jpeg') ||
           ext.endsWith('.png') ||
           ext.endsWith('.mp4') ||
           ext.endsWith('.mov') ||
           ext.endsWith('.heic');
-    }).toList();
+
+      if (!isMedia) continue;
+
+      // Verificar si es del año solicitado
+      final match = regex.firstMatch(file);
+      if (match != null) {
+        final fileYear = match.group(1);
+        if (fileYear == yearStr) {
+          mediaFiles.add(file);
+        }
+      }
+    }
+
+    if (mediaFiles.isEmpty) {
+      throw Exception('No se encontraron fotos o vídeos para el año $year');
+    }
 
     // Copiar con progreso
     for (int i = 0; i < mediaFiles.length; i++) {
@@ -142,7 +164,7 @@ class OrganizerRepository {
       await Future.delayed(const Duration(milliseconds: 10));
     }
 
-    // Organizar por mes
+    // Organizar por mes (solo del año seleccionado)
     await _organizeByMonth(localBackupDir.path, onProgress: onProgress);
   }
 

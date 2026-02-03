@@ -158,7 +158,7 @@ class OrganizerViewModel extends ChangeNotifier {
   }
 
   // ============ COPIAR Y ORGANIZAR TODA LA SD ============
-  Future<void> copyAndOrganizeMedia() async {
+  Future<void> copyAndOrganizeMedia({required int year}) async {  // ← AGREGAR PARÁMETRO REQUERIDO
     if (isDeviceConnected != true) {
       errorMessage = '❌ No hay dispositivo conectado';
       notifyListeners();
@@ -167,16 +167,17 @@ class OrganizerViewModel extends ChangeNotifier {
 
     _setActionLoading(true);
     _clearProgress();
-    currentOperation = 'Copiando y organizando media';
-    destinationFolder = 'LocalBackup'; // Carpeta por defecto
+    currentOperation = 'Copiando y organizando media del año $year';  // ← ACTUALIZADO
+    destinationFolder = 'Fotos_$year';  // ← ACTUALIZADO
 
-    _addLog('🔄 INICIANDO COPIA Y ORGANIZACIÓN');
+    _addLog('🔄 INICIANDO COPIA Y ORGANIZACIÓN DEL AÑO $year');
     _addLog('📁 Carpeta destino principal: ./$destinationFolder');
     _addLog('📊 Los archivos se organizarán por mes dentro de esta carpeta');
     _addLog('🔍 Detectando carpeta de fotos en la SD...');
 
     try {
       await repository.copyAndOrganizeMedia(
+        year: year,  // ← Pasar el año al repositorio
         onProgress: (progress) {
           currentProgress = progress;
 
@@ -211,17 +212,16 @@ class OrganizerViewModel extends ChangeNotifier {
         },
       );
 
-      successMessage = '✅ Archivos copiados y organizados correctamente';
+      successMessage = '✅ Archivos del año $year copiados y organizados correctamente';  // ← ACTUALIZADO
       _addLog('🎉 PROCESO COMPLETADO EXITOSAMENTE');
       _addLog('📂 Archivos organizados en: ./$destinationFolder');
-      _addLog('📅 Organización: Por mes (Ej: 2024-01, 2024-02, etc.)');
-      _addLog('📝 Archivos sin fecha en carpeta: ./$destinationFolder/SinFecha');
+      _addLog('📅 Organización: Por mes (Ej: $year/01 - Enero, $year/02 - Febrero, etc.)');
       _addLog('📍 Ruta completa: ${Directory(destinationFolder!).absolute.path}');
 
     } catch (e) {
-      errorMessage = '❌ Error al copiar archivos: $e';
+      errorMessage = '❌ Error al copiar archivos del año $year: $e';  // ← ACTUALIZADO
       _addLog('❌ ERROR DURANTE COPIA: $e');
-      _addLog('💡 Sugerencia: Verifica que la tarjeta SD esté insertada y tenga fotos');
+      _addLog('💡 Sugerencia: Verifica que la tarjeta SD tenga fotos del año $year');
     } finally {
       _setActionLoading(false);
       _clearProgress();
