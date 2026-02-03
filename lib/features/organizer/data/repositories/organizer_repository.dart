@@ -77,11 +77,27 @@ class OrganizerRepository {
   // ============ SCRCPY ============
   Future<void> startScrcpy() async {
     if (Platform.isWindows) {
+      // Buscar scrcpy en external/adb/scrcpy-win64-v3.3.4/
+      final currentDir = Directory.current.path;
+      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'scrcpy-win64-v3.3.4', 'scrcpy.exe');
+
+      print('🔍 Buscando scrcpy en: $scrcpyPath');
+
+      final scrcpyFile = File(scrcpyPath);
+      if (!await scrcpyFile.exists()) {
+        throw Exception('scrcpy.exe no encontrado en: $scrcpyPath');
+      }
+
+      print('✅ scrcpy encontrado (${await scrcpyFile.length()} bytes)');
+
+      print('🚀 Iniciando scrcpy...');
+
       await Process.start(
-        'assets/adb/windows/scrcpy.exe',
-        [],
+        scrcpyPath,
+        ['--always-on-top', '--max-size=1920'],
         mode: ProcessStartMode.detachedWithStdio,
       );
+
     } else if (Platform.isLinux) {
       final homeDir = Platform.environment['HOME']!;
       final scrcpyPath = '$homeDir/scrcpy-linux-x86_64-v3.3.4/scrcpy';
