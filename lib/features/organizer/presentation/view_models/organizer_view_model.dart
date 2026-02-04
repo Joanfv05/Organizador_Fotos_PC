@@ -21,6 +21,14 @@ class OrganizerViewModel extends ChangeNotifier {
   String? destinationFolder;
   String? selectedFolderName;
 
+  // NUEVO: Para guardar la última ruta de destino
+  String? _lastDestinationPath;
+  String? get lastDestinationPath => _lastDestinationPath;
+
+  // NUEVO: Para la ruta actual de destino (durante operación)
+  String? _currentDestinationPath;
+  String? get currentDestinationPath => _currentDestinationPath;
+
   OrganizerViewModel({required this.repository});
 
   // ============ CONEXIÓN ============
@@ -94,7 +102,7 @@ class OrganizerViewModel extends ChangeNotifier {
     }
 
     _setActionLoading(true);
-    _clearProgress();
+    _clearCurrentOperation();
     currentOperation = operationName;
     selectedFolderName = folderName;
 
@@ -102,10 +110,12 @@ class OrganizerViewModel extends ChangeNotifier {
       try {
         final dirPath = await repository.getBackupDirectoryPath(folderName);
         destinationFolder = dirPath;
+        _currentDestinationPath = dirPath; // NUEVO: Guardar ruta actual
         _addLog('📁 Carpeta destino: ${destinationFolder}');
       } catch (e) {
         _addLog('⚠️ No se pudo crear carpeta: $e');
         destinationFolder = null;
+        _currentDestinationPath = null;
       }
     }
 
@@ -116,12 +126,21 @@ class OrganizerViewModel extends ChangeNotifier {
 
     try {
       await operation();
+
+      // NUEVO: Guardar la ruta como última ruta usada
+      if (destinationFolder != null) {
+        _lastDestinationPath = destinationFolder;
+        _addLog('💾 Ruta guardada para futuras referencias');
+      }
+
       _showSuccess(successMessage);
     } catch (e) {
       _showError('$errorPrefix: $e');
     } finally {
       _setActionLoading(false);
-      _clearProgress();
+      if (!isActionLoading) {
+        _clearCurrentOperation();
+      }
     }
   }
 
@@ -340,9 +359,15 @@ class OrganizerViewModel extends ChangeNotifier {
 
   void _clearProgress() {
     currentProgress = null;
-    currentOperation = null;
     destinationFolder = null;
     selectedFolderName = null;
+    notifyListeners();
+  }
+
+  void _clearCurrentOperation() {
+    currentOperation = null;
+    _currentDestinationPath = null;
+    currentProgress = null;
     notifyListeners();
   }
 
@@ -358,6 +383,13 @@ class OrganizerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // NUEVO: Método para limpiar la ruta guardada
+  void clearLastDestinationPath() {
+    _lastDestinationPath = null;
+    _addLog('🗑️ Ruta guardada eliminada');
+    notifyListeners();
+  }
+
   // ============ HELPERS DE LOADING ============
   void _setTreeLoading(bool loading) {
     isTreeLoading = loading;
@@ -366,6 +398,10 @@ class OrganizerViewModel extends ChangeNotifier {
 
   void _setActionLoading(bool loading) {
     isActionLoading = loading;
+    if (!loading) {
+      // Limpiar la operación actual cuando se completa
+      _clearCurrentOperation();
+    }
     notifyListeners();
   }
 

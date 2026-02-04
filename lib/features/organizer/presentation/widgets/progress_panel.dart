@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:clipboard/clipboard.dart';
 import 'package:photo_organizer_pc/features/organizer/domain/models/transfer_progress.dart';
+import 'dart:io';
 
 class ProgressPanel extends StatelessWidget {
   final TransferProgress? progress;
@@ -7,6 +9,7 @@ class ProgressPanel extends StatelessWidget {
   final String currentOperation;
   final List<String> logs;
   final String? destinationFolder;
+  final String? lastDestinationPath; // NUEVO: para mostrar ruta guardada
 
   const ProgressPanel({
     super.key,
@@ -15,12 +18,17 @@ class ProgressPanel extends StatelessWidget {
     required this.currentOperation,
     required this.logs,
     this.destinationFolder,
+    this.lastDestinationPath, // NUEVO parámetro
   });
 
   @override
   Widget build(BuildContext context) {
+    // Determinar qué ruta mostrar
+    final String? displayedPath = destinationFolder ?? lastDestinationPath;
+
     return Card(
       elevation: 2,
+      margin: const EdgeInsets.all(8.0),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -57,14 +65,10 @@ class ProgressPanel extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Información de carpeta destino
-            if (destinationFolder != null) ...[
-              _buildInfoCard(
-                icon: Icons.folder,
-                title: 'Carpeta destino',
-                content: destinationFolder!,
-                color: Colors.blue.shade50,
-              ),
+            // Información de carpeta destino con botón de copiar
+            // MODIFICADO: Mostrar siempre si hay ruta disponible
+            if (displayedPath != null) ...[
+              _buildDestinationFolderSection(context, displayedPath),
               const SizedBox(height: 12),
             ],
 
@@ -102,6 +106,159 @@ class ProgressPanel extends StatelessWidget {
       default:
         return const Icon(Icons.sync, color: Colors.blue, size: 28);
     }
+  }
+
+  // MODIFICADO: Aceptar la ruta como parámetro
+  Widget _buildDestinationFolderSection(BuildContext context, String path) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Encabezado con icono y botón
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.folder, color: Colors.blue, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    // MODIFICADO: Distinguir entre operación actual y última
+                    destinationFolder != null
+                        ? '📂 Carpeta destino actual'
+                        : '💾 Última carpeta destino',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[800],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Botón para copiar ruta
+              Tooltip(
+                message: 'Copiar ruta al portapapeles',
+                child: InkWell(
+                  onTap: () {
+                    _copyPathToClipboard(context, path);
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.content_copy, size: 14, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          'Copiar ruta',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Ruta completa con posibilidad de seleccionar
+          GestureDetector(
+            onLongPress: () {
+              _copyPathToClipboard(context, path);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Ruta completa
+                        SelectableText(
+                          path,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'Monospace',
+                            color: Colors.black87,
+                          ),
+                          maxLines: 3,
+                          minLines: 1,
+                        ),
+
+                        // Separador
+                        const SizedBox(height: 6),
+                        const Divider(height: 1, color: Colors.grey),
+                        const SizedBox(height: 6),
+
+                        // Información adicional
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 12, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              // MODIFICADO: Mensaje diferente según estado
+                              destinationFolder != null
+                                  ? 'Presiona y mantén para copiar'
+                                  : 'Ruta guardada de la última operación',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Icono de acceso rápido
+                  Tooltip(
+                    message: 'Abrir en explorador de archivos',
+                    child: IconButton(
+                      icon: const Icon(Icons.open_in_new, size: 16),
+                      color: Colors.blue,
+                      onPressed: () {
+                        _openInFileExplorer(path);
+                      },
+                      padding: const EdgeInsets.all(2),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildInfoCard({
@@ -232,10 +389,11 @@ class ProgressPanel extends StatelessWidget {
 
         // Archivo actual
         _buildInfoCard(
-            icon: Icons.insert_drive_file,
-            title: 'Archivo actual',
-            content: progress.fileInfo,
-            color: Colors.grey.shade50),
+          icon: Icons.insert_drive_file,
+          title: 'Archivo actual',
+          content: progress.fileInfo,
+          color: Colors.grey.shade50,
+        ),
       ],
     );
   }
@@ -346,6 +504,59 @@ class ProgressPanel extends StatelessWidget {
         return Colors.purple;
       default:
         return Colors.blue;
+    }
+  }
+
+  // ============ MÉTODOS AUXILIARES PARA COPIAR RUTA ============
+
+  void _copyPathToClipboard(BuildContext context, String path) {
+    FlutterClipboard.copy(path).then((_) {
+      // Mostrar snackbar de confirmación
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✅ Ruta copiada al portapapeles'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    }).catchError((error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error al copiar: $error'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    });
+  }
+
+  void _openInFileExplorer(String path) async {
+    try {
+      // Verificar si la carpeta existe
+      final dir = Directory(path);
+      bool exists = await dir.exists();
+
+      String pathToOpen = exists ? path : dir.parent.path;
+
+      // Método cross-platform para abrir el explorador de archivos
+      if (Platform.isWindows) {
+        await Process.run('explorer', [pathToOpen.replaceAll('/', '\\')]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [pathToOpen]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [pathToOpen]);
+      }
+
+      print('📂 Abriendo explorador en: $pathToOpen');
+    } catch (e) {
+      print('❌ Error al abrir explorador: $e');
+
+      // Mostrar mensaje al usuario (opcional)
+      // Puedes agregar un ScaffoldMessenger aquí si quieres
     }
   }
 }
