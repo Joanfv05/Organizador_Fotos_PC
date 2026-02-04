@@ -1,4 +1,3 @@
-// progress_panel.dart - Versión mejorada
 import 'package:flutter/material.dart';
 import 'package:photo_organizer_pc/features/organizer/domain/models/transfer_progress.dart';
 

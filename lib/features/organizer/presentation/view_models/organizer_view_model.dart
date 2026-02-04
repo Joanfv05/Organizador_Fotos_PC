@@ -19,6 +19,7 @@ class OrganizerViewModel extends ChangeNotifier {
   String? currentOperation;
   List<String> operationLogs = [];
   String? destinationFolder;
+  String? selectedFolderName;
 
   OrganizerViewModel({required this.repository});
 
@@ -85,7 +86,7 @@ class OrganizerViewModel extends ChangeNotifier {
     required Future<void> Function() operation,
     required String successMessage,
     required String errorPrefix,
-    String? destinationFolder,
+    String? folderName,
   }) async {
     if (isDeviceConnected != true) {
       _showError('❌ No hay dispositivo conectado');
@@ -95,11 +96,22 @@ class OrganizerViewModel extends ChangeNotifier {
     _setActionLoading(true);
     _clearProgress();
     currentOperation = operationName;
-    this.destinationFolder = destinationFolder;
+    selectedFolderName = folderName;
+
+    if (folderName != null) {
+      try {
+        final dirPath = await repository.getBackupDirectoryPath(folderName);
+        destinationFolder = dirPath;
+        _addLog('📁 Carpeta destino: ${destinationFolder}');
+      } catch (e) {
+        _addLog('⚠️ No se pudo crear carpeta: $e');
+        destinationFolder = null;
+      }
+    }
 
     _addLog('🔄 INICIANDO: $operationName');
     if (destinationFolder != null) {
-      _addLog('📁 Carpeta destino: ./$destinationFolder');
+      _addLog('📁 Carpeta destino: ${destinationFolder}');
     }
 
     try {
@@ -140,12 +152,14 @@ class OrganizerViewModel extends ChangeNotifier {
       },
       successMessage: '✅ Archivos de hoy extraídos correctamente',
       errorPrefix: '❌ Error al extraer archivos',
-      destinationFolder: folderName,
+      folderName: folderName,
     );
   }
 
   // ============ COPIAR Y ORGANIZAR POR AÑO ============
   Future<void> copyAndOrganizeMedia({required int year}) async {
+    final folderName = 'Fotos_$year';
+
     await _executeOperation(
       operationName: 'Copiando y organizando media del año $year',
       operation: () async {
@@ -156,7 +170,7 @@ class OrganizerViewModel extends ChangeNotifier {
       },
       successMessage: '✅ Archivos del año $year copiados y organizados correctamente',
       errorPrefix: '❌ Error al copiar archivos del año $year',
-      destinationFolder: 'Fotos_$year',
+      folderName: folderName,
     );
   }
 
@@ -188,14 +202,15 @@ class OrganizerViewModel extends ChangeNotifier {
       },
       successMessage: '✅ Archivos de $dateStr copiados correctamente',
       errorPrefix: '❌ Error al copiar archivos',
-      destinationFolder: folderName,
+      folderName: folderName,
     );
   }
 
   // ============ COPIAR DE MES ESPECÍFICO ============
   Future<void> copyMediaByMonth(int year, int month) async {
     final monthName = _getMonthName(month);
-    final folderName = 'Fotos_${year}-${month.toString().padLeft(2, '0')}_$monthName';
+    final monthStr = month.toString().padLeft(2, '0');
+    final folderName = 'Fotos_${year}-${monthStr}-$monthName';
 
     await _executeOperation(
       operationName: 'Copiando fotos y vídeos del mes específico',
@@ -208,7 +223,7 @@ class OrganizerViewModel extends ChangeNotifier {
       },
       successMessage: '✅ Fotos y vídeos de $monthName $year copiados correctamente',
       errorPrefix: '❌ Error al copiar archivos del mes',
-      destinationFolder: folderName,
+      folderName: folderName,
     );
   }
 
@@ -327,6 +342,7 @@ class OrganizerViewModel extends ChangeNotifier {
     currentProgress = null;
     currentOperation = null;
     destinationFolder = null;
+    selectedFolderName = null;
     notifyListeners();
   }
 

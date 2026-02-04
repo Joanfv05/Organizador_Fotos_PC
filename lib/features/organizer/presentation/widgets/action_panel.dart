@@ -188,6 +188,7 @@ class ActionPanel extends StatelessWidget {
               currentOperation: viewModel.currentOperation ??
                   'Esperando acción...',
               logs: viewModel.operationLogs,
+              destinationFolder: viewModel.destinationFolder,
             ),
 
             // Botón para limpiar logs

@@ -125,7 +125,15 @@ class OrganizerRepository {
   Future<void> extractTodayMedia({
     Function(TransferProgress)? onProgress,
   }) async {
-    await extractorService.extractTodayMedia(onProgress: onProgress);
+    final today = DateTime.now();
+    final folderName = 'Fotos_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final destinationDir = await _createLocalBackupDir(folderName);
+
+    await extractorService.extractMediaFromDate(
+      today,
+      customLocalPath: destinationDir.path,
+      onProgress: onProgress,
+    );
   }
 
   // ============ COPIA Y ORGANIZACIÓN ============
@@ -170,7 +178,8 @@ class OrganizerRepository {
 
     final sdCameraPath = await _getSdCameraPathOrThrow();
     final monthStr = month.toString().padLeft(2, '0');
-    final localBackupDir = await _createLocalBackupDir('Fotos del Mes - $year-$monthStr');
+    final monthName = _months[month] ?? 'Mes $month';
+    final localBackupDir = await _createLocalBackupDir('Fotos_$year-$monthStr-$monthName');
 
     print('📁 Local Backup Dir: ${localBackupDir.path}');
 
@@ -194,8 +203,12 @@ class OrganizerRepository {
       DateTime date, {
         Function(TransferProgress)? onProgress,
       }) async {
+    final folderName = 'Fotos_${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final destinationDir = await _createLocalBackupDir(folderName);
+
     await extractorService.extractMediaFromDate(
       date,
+      customLocalPath: destinationDir.path,
       onProgress: onProgress,
     );
   }
@@ -231,7 +244,6 @@ class OrganizerRepository {
 
   Future<Directory> _createLocalBackupDir(String folderName) async {
     try {
-      // OPCIÓN A: Raíz del proyecto (2 niveles arriba desde /lib/)
       final currentDir = Directory.current;
       final projectRoot = Directory(path.join(currentDir.path, '..', '..'));
       final projectRootPath = projectRoot.absolute.path;
@@ -252,25 +264,7 @@ class OrganizerRepository {
       }
 
       await targetDir.create(recursive: true);
-
-      // Verificar creación
-      if (await targetDir.exists()) {
-        print('✅ Carpeta creada exitosamente');
-
-        // Listar contenido para debug
-        final parent = targetDir.parent;
-        print('📂 Contenido de ${parent.path}:');
-        try {
-          final entries = await parent.list().toList();
-          for (var entry in entries) {
-            print('   - ${path.basename(entry.path)}');
-          }
-        } catch (e) {
-          print('   (No se pudo listar contenido)');
-        }
-      } else {
-        print('⚠️ Advertencia: No se pudo verificar la creación');
-      }
+      print('✅ Carpeta creada exitosamente: ${targetDir.path}');
 
       return targetDir;
 
@@ -278,7 +272,11 @@ class OrganizerRepository {
       print('🔴 Error creando carpeta: $e');
 
       // Fallback definitivo: HOME del usuario
-      final homeDir = Platform.environment['HOME']!;
+      final homeDir = Platform.environment['HOME'] ?? '';
+      if (homeDir.isEmpty) {
+        throw Exception('No se pudo determinar el directorio HOME');
+      }
+
       final fallbackDir = Directory(path.join(homeDir, 'Fotos Organizadas', folderName));
 
       print('🔄 Usando fallback: ${fallbackDir.path}');
@@ -310,8 +308,8 @@ class OrganizerRepository {
   }
 
   bool _isMediaFile(String filename) {
-    final ext = filename.toLowerCase();
-    return _mediaExtensions.any((mediaExt) => ext.endsWith(mediaExt));
+    final ext = path.extension(filename).toLowerCase();
+    return _mediaExtensions.contains(ext);
   }
 
   Future<void> _copyFilesWithProgress({
@@ -327,55 +325,134 @@ class OrganizerRepository {
       final remotePath = '$sourceDir/$file';
       final localPath = path.join(destinationDir.path, file);
 
+      // Detectar si es video para manejo especial
+      final isVideo = file.toLowerCase().endsWith('.mp4') ||
+          file.toLowerCase().endsWith('.mov') ||
+          file.toLowerCase().endsWith('.avi');
+
+      if (isVideo) {
+        print('🎥 Procesando video: $file');
+      }
+
       if (onProgress != null) {
         onProgress(TransferProgress(
           current: i + 1,
           total: files.length,
           currentFile: file,
           type: TransferType.pull,
+          sourcePath: remotePath,
+          destinationPath: localPath,
         ));
       }
 
-      await adbService.pullFile(remotePath, localPath);
-      await Future.delayed(const Duration(milliseconds: 10));
+      // Pausa más larga para videos grandes
+      if (isVideo) {
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+
+      try {
+        await adbService.pullFile(remotePath, localPath);
+
+        // Verificar integridad del archivo copiado
+        if (isVideo) {
+          await _verifyFileIntegrity(localPath, file);
+        }
+
+      } catch (e) {
+        print('⚠️ Error copiando $file: $e');
+        // Continuar con el siguiente archivo
+      }
+
+      await Future.delayed(Duration(milliseconds: 50));
     }
+  }
+
+  Future<void> _verifyFileIntegrity(String localPath, String fileName) async {
+    try {
+      final file = File(localPath);
+      if (await file.exists()) {
+        final size = await file.length();
+        print('✅ Video $fileName: ${(size / 1024 / 1024).toStringAsFixed(2)} MB');
+
+        // Verificación básica para videos
+        if (fileName.toLowerCase().endsWith('.mp4')) {
+          try {
+            final bytes = await file.readAsBytes();
+            if (bytes.length > 8) {
+              // Verificar header MP4 (debe empezar con 'ftyp')
+              final header = String.fromCharCodes(bytes.sublist(4, 8));
+              if (header == 'ftyp') {
+                print('   ✅ Header MP4 válido');
+              } else {
+                print('   ⚠️ Header MP4 no válido: $header');
+              }
+            }
+          } catch (e) {
+            print('   🔴 Error leyendo bytes del video: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('   🔴 Error verificando $fileName: $e');
+    }
+  }
+
+  Future<String> getBackupDirectoryPath(String folderName) async {
+    final dir = await _createLocalBackupDir(folderName);
+    return dir.path;
   }
 
   Future<void> _organizeByMonth(String sourceDir,
       {Function(TransferProgress)? onProgress}) async {
     final sourceDirectory = Directory(sourceDir);
-    final files = await sourceDirectory
-        .list()
-        .where((e) => e is File)
-        .cast<File>()
-        .toList();
 
-    for (int i = 0; i < files.length; i++) {
-      final file = files[i];
-      final fileName = file.path.split('/').last;
-      final dateMatch = _dateRegex.firstMatch(fileName);
+    try {
+      final files = await sourceDirectory
+          .list()
+          .where((e) => e is File)
+          .cast<File>()
+          .toList();
 
-      if (dateMatch != null) {
-        final year = dateMatch.group(1)!;
-        final monthNum = int.parse(dateMatch.group(2)!);
-        final monthName = _months[monthNum] ?? 'Desconocido';
+      for (int i = 0; i < files.length; i++) {
+        final file = files[i];
+        final fileName = path.basename(file.path);
+        final dateMatch = _dateRegex.firstMatch(fileName);
 
-        final monthFolder = '${monthNum.toString().padLeft(2, '0')} - $monthName';
-        final monthDir = Directory(path.join(sourceDir, year, monthFolder));
-        await monthDir.create(recursive: true);
+        if (dateMatch != null) {
+          final year = dateMatch.group(1)!;
+          final monthNum = int.parse(dateMatch.group(2)!);
+          final monthName = _months[monthNum] ?? 'Desconocido';
 
-        final newPath = path.join(monthDir.path, fileName);
-        await file.rename(newPath);
+          final monthFolder = '${monthNum.toString().padLeft(2, '0')} - $monthName';
+          final monthDir = Directory(path.join(sourceDir, year, monthFolder));
+          await monthDir.create(recursive: true);
+
+          final newPath = path.join(monthDir.path, fileName);
+          await file.rename(newPath);
+
+          if (onProgress != null) {
+            onProgress(TransferProgress(
+              current: i + 1,
+              total: files.length,
+              currentFile: 'Organizando: $fileName',
+              type: TransferType.organizing,
+              destinationPath: path.join(sourceDir, year, monthFolder),
+            ));
+          }
+        } else {
+          if (onProgress != null) {
+            onProgress(TransferProgress(
+              current: i + 1,
+              total: files.length,
+              currentFile: 'Saltando (sin fecha): $fileName',
+              type: TransferType.organizing,
+            ));
+          }
+        }
       }
-
-      if (onProgress != null) {
-        onProgress(TransferProgress(
-          current: i + 1,
-          total: files.length,
-          currentFile: 'Organizando: $fileName',
-          type: TransferType.organizing,
-        ));
-      }
+    } catch (e) {
+      print('🔴 Error organizando archivos por mes: $e');
+      throw Exception('Error al organizar archivos: $e');
     }
   }
 }
