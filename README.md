@@ -4,34 +4,17 @@ Organiza tus fotos de Android en tu PC con Flutter. Simple, rápido y eficiente.
 
 ## 🚀 ¿Qué hace esta app?
 
-- 🔌 **Detecta automáticamente** tu Android conectado por USB
-- 📁 **Organiza fotos y videos** de forma inteligente
-- 🖥️ **Interfaz moderna** para Windows y Linux
-- ⚡ **Transferencia rápida** sin complicaciones
-- 📱 **Monitoriza tu móvil** con scrcpy desde la app (Linux y Windows)
+* 🔌 **Detecta automáticamente** tu Android conectado por USB
+* 📁 **Organiza fotos y videos** de forma inteligente
+* 🖥️ **Interfaz moderna** para Windows y Linux
+* ⚡ **Transferencia rápida** sin complicaciones
+* 📱 **Monitoriza tu móvil** con scrcpy desde la app (Linux y Windows)
+
+---
 
 ## 📦 Instalación Rápida
 
-### 1. Instalar ADB (Linux)
-```bash
-# Linux (Ubuntu/Debian):
-sudo apt update && sudo apt install android-tools-adb
-
-# Verificar que funciona:
-adb version
-````
-
-### 2. Instalar scrcpy (solo Linux)
-
-⚠️ La app busca el binario **scrcpy** en: `$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy`.  
-Debes **descargar la versión oficial** desde [GitHub](https://github.com/Genymobile/scrcpy/releases/tag/v3.3.4) y extraerla **exactamente en esa ruta** para que la app pueda iniciarlo.
-
-### Verifica que funciona:
-$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy
-
-> ⚠️ **Nota:** En Windows, scrcpy ya viene incluido en los assets de la app.
-
-### 3. Clonar y ejecutar la app
+### 1. Clonar y ejecutar la app
 
 ```bash
 git clone https://github.com/Joanfv05/Organizador_Fotos_PC.git
@@ -39,6 +22,57 @@ cd photo_organizer_pc
 flutter pub get
 flutter run
 ```
+
+### 2. Estructura de binarios
+
+Los binarios de **ADB y scrcpy** no están en assets, sino en:
+
+```
+external/adb/
+├── linux/
+│   ├── adb
+│   ├── scrcpy
+│   └── otros archivos
+└── windows/
+    ├── adb.exe
+    ├── scrcpy.exe
+    └── otros archivos
+```
+
+* Windows usa directamente los binarios de `external/adb/windows/`
+* Linux usa los binarios de `external/adb/linux/`
+
+---
+
+### 3. Permisos en Linux (muy importante)
+
+Linux **requiere permisos de ejecución** y acceso a USB para que `adb` y `scrcpy` funcionen:
+
+```bash
+cd ~/Escritorio/Organizador_Fotos_PC/external/adb/linux
+chmod +x adb scrcpy
+
+# Si hay problemas con USB:
+sudo usermod -aG plugdev $USER
+```
+
+Luego cierra sesión y vuelve a entrar.
+
+Después de esto, la app podrá iniciar `adb` y `scrcpy` automáticamente sin errores.
+
+---
+
+### 4. Instalar ADB y scrcpy opcionales (si quieres usar los binarios del sistema)
+
+```bash
+sudo apt update && sudo apt install android-tools-adb scrcpy
+adb version
+scrcpy --version
+```
+
+> ⚠️ Nota: la app detectará automáticamente `adb` y `scrcpy` del sistema si existen, pero **los binarios incluidos en `external/adb/` siguen siendo los recomendados**.
+
+---
 
 ## 🔧 Primeros Pasos
 
@@ -54,24 +88,25 @@ flutter run
 2. **Acepta "Permitir depuración USB"** en el teléfono
 3. **¡Listo!** La app detectará tu dispositivo automáticamente
 
+---
+
 ## 🐛 Problemas Comunes
 
 ### ❌ "No detecta mi Android"
 
 ```bash
-# Soluciones rápidas:
 adb kill-server && adb start-server
 sudo adb devices  # Problema de permisos
-
-# Permisos en Linux:
-sudo usermod -aG plugdev $USER
 ```
 
 ### ❌ "scrcpy no muestra pantalla en Linux"
 
-* Asegúrate de **descargar scrcpy** desde [GitHub](https://github.com/Genymobile/scrcpy/releases/tag/v3.3.4) y extraerlo en: `$HOME/scrcpy-linux-x86_64-v3.3.4/`
-* Verifica que el binario exista en: `$HOME/scrcpy-linux-x86_64-v3.3.4/scrcpy`
+* Verifica que los binarios `adb` y `scrcpy` tengan permisos de ejecución en `external/adb/linux/`
 * La app lanza scrcpy mediante shell (`runInShell: true`) para abrir la ventana de monitorización del móvil
+
+> ⚠️ **Nota importante:** Linux requiere permisos correctos para ejecutar `adb start-server`. No es posible automatizar completamente estos permisos desde la app por seguridad del sistema. Debes ejecutarlos manualmente al menos una vez.
+
+---
 
 ## 🗂️ Estructura Simple
 
@@ -83,19 +118,25 @@ lib/
 └── main.dart           ← Entrada principal
 ```
 
+---
+
 ## 📱 Compatibilidad
 
-| Sistema | ADB Requerido | Scrcpy      | Notas                                                                        |
-| ------- | ------------- | ----------- | ---------------------------------------------------------------------------- |
-| Windows | ✅ Incluido    | ✅ Incluido  | Descarga automática en assets                                                |
-| Linux   | ⚠️ Instalar   | ⚠️ Instalar | Instalar scrcpy manualmente y ubicarlo en `$HOME/scrcpy-linux-x86_64-v3.3.4` |
+| Sistema | Binarios incluidos      | Notas                                                                    |
+| ------- | ----------------------- | ------------------------------------------------------------------------ |
+| Windows | ✅ external/adb/windows/ | Funciona directamente desde ahí                                          |
+| Linux   | ⚠️ external/adb/linux/  | Debes dar permisos y añadir usuario a plugdev antes de usar scrcpy y adb |
+
+---
 
 ## ⚡ Características Técnicas
 
-* ✅ **Detección automática** de ADB y scrcpy (sistema o assets)
+* ✅ **Detección automática** de ADB y scrcpy (sistema o `external/adb/`)
 * ✅ **Manejo de errores** robusto
 * ✅ **UI responsiva** con Material Design 3
 * ✅ **Código limpio** y mantenible
+
+---
 
 ## 🤝 Contribuir
 
@@ -103,6 +144,8 @@ lib/
 2. **Crea una rama** (`feature/nueva-funcionalidad`)
 3. **Envía PR** con tus cambios
 4. **¡Gracias!** 🎉
+
+---
 
 ## 📄 Licencia
 
@@ -118,3 +161,4 @@ MIT - ¡Usa, modifica, comparte libremente!
 
 ✨ **¡Organiza y monitoriza tus recuerdos en segundos!**
 
+---
