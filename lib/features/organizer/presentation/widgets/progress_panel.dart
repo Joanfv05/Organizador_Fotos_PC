@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:clipboard/clipboard.dart';
 import 'package:photo_organizer_pc/features/organizer/domain/models/transfer_progress.dart';
 import 'dart:io';
+import 'dart:async';
+import 'package:flutter/services.dart';
 
 class ProgressPanel extends StatelessWidget {
   final TransferProgress? progress;
@@ -9,7 +10,7 @@ class ProgressPanel extends StatelessWidget {
   final String currentOperation;
   final List<String> logs;
   final String? destinationFolder;
-  final String? lastDestinationPath; // NUEVO: para mostrar ruta guardada
+  final String? lastDestinationPath;
 
   const ProgressPanel({
     super.key,
@@ -18,12 +19,11 @@ class ProgressPanel extends StatelessWidget {
     required this.currentOperation,
     required this.logs,
     this.destinationFolder,
-    this.lastDestinationPath, // NUEVO parámetro
+    this.lastDestinationPath,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Determinar qué ruta mostrar
     final String? displayedPath = destinationFolder ?? lastDestinationPath;
 
     return Card(
@@ -34,7 +34,6 @@ class ProgressPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título y estado
             Row(
               children: [
                 _buildStatusIcon(),
@@ -65,23 +64,18 @@ class ProgressPanel extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Información de carpeta destino con botón de copiar
-            // MODIFICADO: Mostrar siempre si hay ruta disponible
             if (displayedPath != null) ...[
               _buildDestinationFolderSection(context, displayedPath),
               const SizedBox(height: 12),
             ],
 
-            // Barra de progreso (solo si hay operación activa)
             if (isActive && progress != null) ...[
               _buildProgressSection(progress!),
               const SizedBox(height: 16),
             ],
 
-            // Panel de logs
             if (logs.isNotEmpty) ...[
               _buildLogsSection(),
-              const SizedBox(height: 8),
             ],
           ],
         ),
@@ -94,7 +88,11 @@ class ProgressPanel extends StatelessWidget {
       return const Icon(Icons.check_circle, color: Colors.green, size: 28);
     }
 
-    switch (progress?.type) {
+    if (progress?.type == null) {
+      return const Icon(Icons.sync, color: Colors.blue, size: 28);
+    }
+
+    switch (progress!.type!) {
       case TransferType.pull:
         return const Icon(Icons.download, color: Colors.blue, size: 28);
       case TransferType.push:
@@ -108,7 +106,6 @@ class ProgressPanel extends StatelessWidget {
     }
   }
 
-  // MODIFICADO: Aceptar la ruta como parámetro
   Widget _buildDestinationFolderSection(BuildContext context, String path) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -120,16 +117,14 @@ class ProgressPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado con icono y botón
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  Icon(Icons.folder, color: Colors.blue, size: 20),
+                  const Icon(Icons.folder, color: Colors.blue, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    // MODIFICADO: Distinguir entre operación actual y última
                     destinationFolder != null
                         ? '📂 Carpeta destino actual'
                         : '💾 Última carpeta destino',
@@ -142,7 +137,6 @@ class ProgressPanel extends StatelessWidget {
                 ],
               ),
 
-              // Botón para copiar ruta
               Tooltip(
                 message: 'Copiar ruta al portapapeles',
                 child: InkWell(
@@ -181,7 +175,6 @@ class ProgressPanel extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Ruta completa con posibilidad de seleccionar
           GestureDetector(
             onLongPress: () {
               _copyPathToClipboard(context, path);
@@ -200,7 +193,6 @@ class ProgressPanel extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Ruta completa
                         SelectableText(
                           path,
                           style: const TextStyle(
@@ -212,18 +204,15 @@ class ProgressPanel extends StatelessWidget {
                           minLines: 1,
                         ),
 
-                        // Separador
                         const SizedBox(height: 6),
                         const Divider(height: 1, color: Colors.grey),
                         const SizedBox(height: 6),
 
-                        // Información adicional
                         Row(
                           children: [
                             Icon(Icons.info_outline, size: 12, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
-                              // MODIFICADO: Mensaje diferente según estado
                               destinationFolder != null
                                   ? 'Presiona y mantén para copiar'
                                   : 'Ruta guardada de la última operación',
@@ -239,7 +228,6 @@ class ProgressPanel extends StatelessWidget {
                     ),
                   ),
 
-                  // Icono de acceso rápido
                   Tooltip(
                     message: 'Abrir en explorador de archivos',
                     child: IconButton(
@@ -261,62 +249,15 @@ class ProgressPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String content,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.grey[700]),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProgressSection(TransferProgress progress) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Barra de progreso
         LinearProgressIndicator(
           value: progress.percentage / 100,
           backgroundColor: Colors.grey[200],
           valueColor: AlwaysStoppedAnimation<Color>(
-            _getColorForType(progress.type),
+            _getColorForType(progress.type ?? TransferType.scanning),
           ),
           minHeight: 10,
           borderRadius: BorderRadius.circular(5),
@@ -324,34 +265,38 @@ class ProgressPanel extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        // Información de progreso
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  progress.statusText,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: _getColorForType(progress.type),
-                  ),
-                ),
-                if (progress.detailedInfo.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    progress.detailedInfo,
+                    progress.statusText,
                     style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _getColorForType(progress.type ?? TransferType.scanning),
                     ),
-                    maxLines: 2,
                   ),
+                  if (progress.detailedInfo.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      progress.detailedInfo,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
+
+            const SizedBox(width: 16),
 
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -387,7 +332,6 @@ class ProgressPanel extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Archivo actual
         _buildInfoCard(
           icon: Icons.insert_drive_file,
           title: 'Archivo actual',
@@ -423,7 +367,6 @@ class ProgressPanel extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // Lista de logs
         Container(
           height: 100,
           decoration: BoxDecoration(
@@ -492,6 +435,52 @@ class ProgressPanel extends StatelessWidget {
     );
   }
 
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[700]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _getColorForType(TransferType type) {
     switch (type) {
       case TransferType.pull:
@@ -502,16 +491,22 @@ class ProgressPanel extends StatelessWidget {
         return Colors.orange;
       case TransferType.scanning:
         return Colors.purple;
-      default:
-        return Colors.blue;
     }
   }
 
-  // ============ MÉTODOS AUXILIARES PARA COPIAR RUTA ============
+  // ============ MÉTODO ACTUALIZADO PARA COPIAR AL PORTAPAPELES ============
+  void _copyPathToClipboard(BuildContext context, String path) async {
+    try {
+      // Intentar métodos nativos primero
+      final success = await _copyUsingNativeMethods(path);
 
-  void _copyPathToClipboard(BuildContext context, String path) {
-    FlutterClipboard.copy(path).then((_) {
-      // Mostrar snackbar de confirmación
+      if (!success) {
+        // Fallback al portapapeles de Flutter
+        await Clipboard.setData(ClipboardData(text: path));
+      }
+
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('✅ Ruta copiada al portapapeles'),
@@ -523,26 +518,97 @@ class ProgressPanel extends StatelessWidget {
           ),
         ),
       );
-    }).catchError((error) {
+    } catch (error) {
+      debugPrint('Error al copiar al portapapeles: $error');
+
+      if (!context.mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error al copiar: $error'),
+          content: const Text('❌ Error al copiar la ruta'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
       );
-    });
+    }
+  }
+
+  // Método nativo para copiar al portapapeles
+  Future<bool> _copyUsingNativeMethods(String text) async {
+    try {
+      if (Platform.isWindows) {
+        // Windows - Usar el comando clip
+        final process = await Process.start('cmd', ['/c', 'echo', text, '|', 'clip']);
+        final exitCode = await process.exitCode;
+        return exitCode == 0;
+      } else if (Platform.isLinux) {
+        // Linux - Probar múltiples métodos
+        return await _copyLinux(text);
+      } else if (Platform.isMacOS) {
+        // macOS - Usar pbcopy
+        final process = await Process.start('bash', ['-c', 'echo "$text" | pbcopy']);
+        final exitCode = await process.exitCode;
+        return exitCode == 0;
+      } else {
+        // Para otras plataformas, usar el método de Flutter
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error en método nativo: $e');
+      return false;
+    }
+  }
+
+  // Método específico para Linux
+  Future<bool> _copyLinux(String text) async {
+    try {
+      // Lista de comandos de portapapeles a probar en orden
+      final clipboardCommands = [
+        ['xclip', '-selection', 'clipboard'],
+        ['wl-copy'],
+        ['xsel', '--clipboard', '--input'],
+      ];
+
+      for (final command in clipboardCommands) {
+        try {
+          // Verificar si el comando existe
+          final whichProcess = await Process.run('which', [command[0]]);
+          if (whichProcess.exitCode != 0) {
+            continue; // Comando no encontrado, probar siguiente
+          }
+
+          // Ejecutar el comando de copia
+          final process = await Process.start(
+              'bash',
+              ['-c', 'echo "$text" | ${command.join(" ")}']
+          );
+          final exitCode = await process.exitCode;
+
+          if (exitCode == 0) {
+            debugPrint('Copiado usando: ${command[0]}');
+            return true;
+          }
+        } catch (e) {
+          // Continuar con el siguiente comando
+          continue;
+        }
+      }
+
+      // Ningún comando funcionó
+      return false;
+    } catch (e) {
+      debugPrint('Error en _copyLinux: $e');
+      return false;
+    }
   }
 
   void _openInFileExplorer(String path) async {
     try {
-      // Verificar si la carpeta existe
       final dir = Directory(path);
       bool exists = await dir.exists();
 
       String pathToOpen = exists ? path : dir.parent.path;
 
-      // Método cross-platform para abrir el explorador de archivos
       if (Platform.isWindows) {
         await Process.run('explorer', [pathToOpen.replaceAll('/', '\\')]);
       } else if (Platform.isLinux) {
@@ -551,12 +617,9 @@ class ProgressPanel extends StatelessWidget {
         await Process.run('open', [pathToOpen]);
       }
 
-      print('📂 Abriendo explorador en: $pathToOpen');
+      debugPrint('📂 Abriendo explorador en: $pathToOpen');
     } catch (e) {
-      print('❌ Error al abrir explorador: $e');
-
-      // Mostrar mensaje al usuario (opcional)
-      // Puedes agregar un ScaffoldMessenger aquí si quieres
+      debugPrint('❌ Error al abrir explorador: $e');
     }
   }
 }

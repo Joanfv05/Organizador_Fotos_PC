@@ -17,6 +17,7 @@ class PhotoOrganizerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const OrganizerPage(),
+
       // Configuración de localización
       locale: const Locale('es', 'ES'),
       supportedLocales: const [
