@@ -233,19 +233,23 @@ class ADBService {
   // RESOLVER ADB (Método interno) - VERSIÓN UNIFICADA
   // =========================
   Future<String> _resolveAdb() async {
-    // 1. Primero intentar ADB del sistema (opcional)
-    if (await isAdbAvailable) {
-      return 'adb';
-    }
+    // 1️ Intentar ADB global
+    if (await isAdbAvailable) return 'adb';
 
-    // 2. Buscar en external/adb/ según plataforma
-    final externalPath = await _findExternalAdb();
-    if (externalPath != null) {
-      return externalPath;
-    }
+    // 2️ Intentar ADB en proyecto (para desarrollo)
+    final projectPath = path.join(Directory.current.path, 'external', 'adb', 'windows', 'adb.exe');
+    final projectFile = File(projectPath);
+    if (await projectFile.exists()) return projectPath;
 
-    throw Exception('ADB no disponible en external/adb/');
+    // 3️ Intentar ADB relativo al .exe (para Release)
+    final exeDir = path.dirname(Platform.resolvedExecutable);
+    final releasePath = path.join(exeDir, 'adb', 'adb.exe');
+    final releaseFile = File(releasePath);
+    if (await releaseFile.exists()) return releasePath;
+
+    throw Exception('ADB no disponible');
   }
+
 
   // =========================
   // ARRANCAR SERVIDOR ADB AUTOMÁTICO
@@ -264,14 +268,14 @@ class ADBService {
 
   // ============ BUSCAR ADB EN EXTERNAL/ PARA AMBAS PLATAFORMAS ============
   Future<String?> _findExternalAdb() async {
-    final currentDir = Directory.current.path;
-
+// Ruta de la carpeta donde está el .exe
+    final exeDir = path.dirname(Platform.resolvedExecutable);
     if (Platform.isWindows) {
-      final windowsPath = path.join(currentDir, 'external', 'adb', 'windows', 'adb.exe');
+      final windowsPath = path.join(exeDir, 'adb', 'windows', 'adb.exe');
       final windowsFile = File(windowsPath);
       if (await windowsFile.exists()) return windowsPath;
     } else {
-      final linuxPath = path.join(currentDir, 'external', 'adb', 'linux', 'adb');
+      final linuxPath = path.join(exeDir, 'adb', 'linux', 'adb');
       final linuxFile = File(linuxPath);
       if (await linuxFile.exists()) {
         await Process.run('chmod', ['+x', linuxPath]);
