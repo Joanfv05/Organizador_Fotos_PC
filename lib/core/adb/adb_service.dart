@@ -39,6 +39,7 @@ class ADBService {
   Future<bool> isDeviceConnected() async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final result = await Process.run(adb, ['devices']);
       return _parseAdbDevices(result.stdout.toString());
     } catch (_) {
@@ -84,6 +85,7 @@ class ADBService {
   Future<List<String>> listDirectories(String directoryPath) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final result = await Process.run(
         adb,
         ['shell', 'ls', '-p', directoryPath],
@@ -110,10 +112,8 @@ class ADBService {
   Future<List<String>> listFiles(String directoryPath) async {
     try {
       final adb = await _resolveAdb();
-      final result = await Process.run(
-        adb,
-        ['shell', 'ls', directoryPath],
-      );
+      await _ensureAdbServer(adb);
+      final result = await Process.run(adb, ['shell', 'ls', directoryPath]);
 
       if (result.exitCode != 0) return [];
 
@@ -134,6 +134,7 @@ class ADBService {
   Future<bool> checkDirectoryExists(String directoryPath) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final result = await Process.run(
         adb,
         ['shell', 'test', '-d', directoryPath, '&&', 'echo', 'exists'],
@@ -150,6 +151,7 @@ class ADBService {
   Future<String> runAdbCommand(List<String> args) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final result = await Process.run(adb, args);
       return result.stdout.toString();
     } catch (e) {
@@ -164,6 +166,7 @@ class ADBService {
       {bool preserveMetadata = true}) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final args = ['pull'];
       if (preserveMetadata) args.add('-a');
       args.addAll([remotePath, localPath]);
@@ -182,6 +185,7 @@ class ADBService {
       {bool preserveMetadata = true}) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final args = ['push'];
       if (preserveMetadata) args.add('-a');
       args.addAll([localPath, remotePath]);
@@ -199,6 +203,7 @@ class ADBService {
   Future<String> createRemoteDirectory(String remotePath) async {
     try {
       final adb = await _resolveAdb();
+      await _ensureAdbServer(adb);
       final result = await Process.run(adb, ['shell', 'mkdir', '-p', remotePath]);
       return result.stdout.toString();
     } catch (e) {
@@ -242,81 +247,38 @@ class ADBService {
     throw Exception('ADB no disponible en external/adb/');
   }
 
+  // =========================
+  // ARRANCAR SERVIDOR ADB AUTOMÁTICO
+  // =========================
+  Future<void> _ensureAdbServer(String adbPath) async {
+    if (Platform.isLinux) {
+      try {
+        // Dar permisos si aún no los tiene
+        await Process.run('chmod', ['+x', adbPath]);
+      } catch (_) {}
+
+      // Arrancar servidor adb si no está corriendo
+      await Process.run(adbPath, ['start-server']);
+    }
+  }
+
   // ============ BUSCAR ADB EN EXTERNAL/ PARA AMBAS PLATAFORMAS ============
   Future<String?> _findExternalAdb() async {
     final currentDir = Directory.current.path;
 
     if (Platform.isWindows) {
-      // Windows: external/adb/windows/adb.exe
       final windowsPath = path.join(currentDir, 'external', 'adb', 'windows', 'adb.exe');
       final windowsFile = File(windowsPath);
-
-      if (await windowsFile.exists()) {
-        return windowsPath;
-      }
-
-      // Backup: buscar junto al ejecutable (para releases)
-      try {
-        final executablePath = Platform.resolvedExecutable;
-        final executableDir = File(executablePath).parent;
-        final releasePath = path.join(executableDir.path, 'adb', 'windows', 'adb.exe');
-        final releaseFile = File(releasePath);
-
-        if (await releaseFile.exists()) {
-          return releasePath;
-        }
-      } catch (e) {
-        // Ignorar error
-      }
-
+      if (await windowsFile.exists()) return windowsPath;
     } else {
-      // Linux: external/adb/linux/adb
       final linuxPath = path.join(currentDir, 'external', 'adb', 'linux', 'adb');
       final linuxFile = File(linuxPath);
-
       if (await linuxFile.exists()) {
-        // Dar permisos de ejecución
         await Process.run('chmod', ['+x', linuxPath]);
         return linuxPath;
       }
     }
 
     return null;
-  }
-
-  // ============ MÉTODOS DEPRECADOS (se pueden eliminar eventualmente) ============
-  // Estos métodos ya no son necesarios porque usamos external/,
-  // pero los mantengo por compatibilidad
-
-  Future<bool> _hasAssetAdb() async {
-    try {
-      final assetPath = Platform.isWindows
-          ? 'assets/adb/windows/adb.exe'
-          : 'assets/adb/linux/adb';
-      await rootBundle.load(assetPath);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<String> _getAssetAdbPath() async {
-    final assetPath = Platform.isWindows
-        ? 'assets/adb/windows/adb.exe'
-        : 'assets/adb/linux/adb';
-
-    final bytes = await rootBundle.load(assetPath);
-    final tempDir = await Directory.systemTemp.createTemp('adb_');
-    final adbFile = File(
-      path.join(tempDir.path, Platform.isWindows ? 'adb.exe' : 'adb'),
-    );
-
-    await adbFile.writeAsBytes(bytes.buffer.asUint8List());
-
-    if (!Platform.isWindows) {
-      await Process.run('chmod', ['+x', adbFile.path]);
-    }
-
-    return adbFile.path;
   }
 }

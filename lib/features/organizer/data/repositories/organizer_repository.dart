@@ -82,7 +82,6 @@ class OrganizerRepository {
       // Windows: external/adb/windows/scrcpy.exe
       final scrcpyPath = path.join(currentDir, 'external', 'adb', 'windows', 'scrcpy.exe');
       await _startScrcpyWithPath(scrcpyPath, ['--always-on-top', '--max-size=1920']);
-
     } else if (Platform.isLinux) {
       // Linux: external/adb/linux/scrcpy
       final scrcpyPath = path.join(currentDir, 'external', 'adb', 'linux', 'scrcpy');
@@ -97,17 +96,28 @@ class OrganizerRepository {
       throw Exception('scrcpy no encontrado en: $scrcpyPath');
     }
 
-    // Dar permisos en Linux
+    // Dar permisos de ejecución en Linux
     if (!Platform.isWindows) {
       await Process.run('chmod', ['+x', scrcpyPath]);
     }
 
     if (Platform.isWindows) {
-      await Process.start(scrcpyPath, args, mode: ProcessStartMode.detachedWithStdio);
+      await Process.start(
+        scrcpyPath,
+        args,
+        mode: ProcessStartMode.detachedWithStdio,
+      );
     } else {
-      // Linux necesita ejecutar desde su directorio
+      // Linux: ejecutar directamente en su directorio y conectarse al servidor X
       final scrcpyDir = Directory(path.dirname(scrcpyPath));
-      await Process.run(scrcpyPath, args, workingDirectory: scrcpyDir.path);
+
+      // Importante: no detached, sí stdio heredado para que se abra la ventana
+      await Process.start(
+        scrcpyPath,
+        args,
+        workingDirectory: scrcpyDir.path,
+        mode: ProcessStartMode.inheritStdio,
+      );
     }
   }
 
