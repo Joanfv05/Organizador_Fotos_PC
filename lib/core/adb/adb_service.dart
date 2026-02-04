@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
 class ADBService {
@@ -52,9 +51,7 @@ class ADBService {
     for (var line in lines) {
       line = line.trim();
       if (line.isNotEmpty && !line.startsWith('List of devices')) {
-        if (line.contains('\tdevice')) {
-          return true;
-        }
+        if (line.contains('\tdevice')) return true;
       }
     }
     return false;
@@ -86,10 +83,7 @@ class ADBService {
     try {
       final adb = await _resolveAdb();
       await _ensureAdbServer(adb);
-      final result = await Process.run(
-        adb,
-        ['shell', 'ls', '-p', directoryPath],
-      );
+      final result = await Process.run(adb, ['shell', 'ls', '-p', directoryPath]);
 
       if (result.exitCode != 0) return [];
 
@@ -170,7 +164,6 @@ class ADBService {
       final args = ['pull'];
       if (preserveMetadata) args.add('-a');
       args.addAll([remotePath, localPath]);
-
       final result = await Process.run(adb, args);
       return result.stdout.toString();
     } catch (e) {
@@ -189,7 +182,6 @@ class ADBService {
       final args = ['push'];
       if (preserveMetadata) args.add('-a');
       args.addAll([localPath, remotePath]);
-
       final result = await Process.run(adb, args);
       return result.stdout.toString();
     } catch (e) {
@@ -222,9 +214,7 @@ class ADBService {
 
     final List<String> existingPaths = [];
     for (final path in waPaths) {
-      if (await checkDirectoryExists(path)) {
-        existingPaths.add(path);
-      }
+      if (await checkDirectoryExists(path)) existingPaths.add(path);
     }
     return existingPaths;
   }
@@ -233,56 +223,32 @@ class ADBService {
   // RESOLVER ADB (Método interno) - VERSIÓN UNIFICADA
   // =========================
   Future<String> _resolveAdb() async {
-    // 1️ Intentar ADB global
+    // 1️⃣ Intentar ADB global
     if (await isAdbAvailable) return 'adb';
 
-    // 2️ Intentar ADB en proyecto (para desarrollo)
-    final projectPath = path.join(Directory.current.path, 'external', 'adb', 'windows', 'adb.exe');
+    // 2️⃣ Intentar ADB en proyecto (IDE/development)
+    final projectPath = path.join(Directory.current.path, 'external', 'adb', Platform.isWindows ? 'windows' : 'linux', Platform.isWindows ? 'adb.exe' : 'adb');
     final projectFile = File(projectPath);
     if (await projectFile.exists()) return projectPath;
 
-    // 3️ Intentar ADB relativo al .exe (para Release)
+    // 3️⃣ Intentar ADB relativo al .exe (Release)
     final exeDir = path.dirname(Platform.resolvedExecutable);
-    final releasePath = path.join(exeDir, 'adb', 'adb.exe');
+    final releasePath = path.join(exeDir, 'adb', Platform.isWindows ? 'adb.exe' : 'adb');
     final releaseFile = File(releasePath);
     if (await releaseFile.exists()) return releasePath;
 
     throw Exception('ADB no disponible');
   }
 
-
   // =========================
   // ARRANCAR SERVIDOR ADB AUTOMÁTICO
   // =========================
   Future<void> _ensureAdbServer(String adbPath) async {
-    if (Platform.isLinux) {
-      try {
-        // Dar permisos si aún no los tiene
+    try {
+      if (!Platform.isWindows) {
         await Process.run('chmod', ['+x', adbPath]);
-      } catch (_) {}
-
-      // Arrancar servidor adb si no está corriendo
-      await Process.run(adbPath, ['start-server']);
-    }
-  }
-
-  // ============ BUSCAR ADB EN EXTERNAL/ PARA AMBAS PLATAFORMAS ============
-  Future<String?> _findExternalAdb() async {
-// Ruta de la carpeta donde está el .exe
-    final exeDir = path.dirname(Platform.resolvedExecutable);
-    if (Platform.isWindows) {
-      final windowsPath = path.join(exeDir, 'adb', 'windows', 'adb.exe');
-      final windowsFile = File(windowsPath);
-      if (await windowsFile.exists()) return windowsPath;
-    } else {
-      final linuxPath = path.join(exeDir, 'adb', 'linux', 'adb');
-      final linuxFile = File(linuxPath);
-      if (await linuxFile.exists()) {
-        await Process.run('chmod', ['+x', linuxPath]);
-        return linuxPath;
       }
-    }
-
-    return null;
+      await Process.run(adbPath, ['start-server']);
+    } catch (_) {}
   }
 }
