@@ -198,6 +198,171 @@ class OrganizerRepository {
     );
   }
 
+  // ============ COPIA DESDE ALMACENAMIENTO INTERNO ============
+  Future<void> copyFromInternalStorage({
+    required int year,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    print('=== INICIANDO copyFromInternalStorage($year) ===');
+
+    // Ruta fija de almacenamiento interno
+    final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
+    print('📁 Internal Camera Path: $internalCameraPath');
+
+    // Verificar si existe
+    final dirExists = await adbService.checkDirectoryExists(internalCameraPath);
+    if (!dirExists) {
+      throw Exception('No se encontró la carpeta Camera en almacenamiento interno');
+    }
+
+    final localBackupDir = await _createLocalBackupDir('Fotos_Internas_$year');
+    print('📁 Local Backup Dir: ${localBackupDir.path}');
+
+    final files = await adbService.listFiles(internalCameraPath);
+    print('📊 Archivos en interno: ${files.length}');
+
+    final mediaFiles = _filterFilesByYear(files, year);
+    print('📊 Archivos del año $year: ${mediaFiles.length}');
+
+    if (mediaFiles.isEmpty) {
+      throw Exception('No se encontraron fotos o vídeos para el año $year en almacenamiento interno');
+    }
+
+    await _copyFilesWithProgress(
+      files: mediaFiles,
+      sourceDir: internalCameraPath,
+      destinationDir: localBackupDir,
+      onProgress: onProgress,
+    );
+
+    await _organizeByMonth(localBackupDir.path, onProgress: onProgress);
+  }
+
+  Future<void> copyFromInternalStorageByMonth({
+    required int year,
+    required int month,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    print('=== INICIANDO copyFromInternalStorageByMonth($year, $month) ===');
+
+    final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
+    final monthStr = month.toString().padLeft(2, '0');
+    final monthName = _months[month] ?? 'Mes $month';
+    final localBackupDir = await _createLocalBackupDir('Fotos_Internas_$year-$monthStr-$monthName');
+
+    print('📁 Local Backup Dir: ${localBackupDir.path}');
+
+    final files = await adbService.listFiles(internalCameraPath);
+    final monthFiles = _filterFilesByMonth(files, year, month);
+
+    if (monthFiles.isEmpty) {
+      throw Exception('No se encontraron fotos o vídeos para $year-$monthStr en interno');
+    }
+
+    await _copyFilesWithProgress(
+      files: monthFiles,
+      sourceDir: internalCameraPath,
+      destinationDir: localBackupDir,
+      onProgress: onProgress,
+    );
+  }
+
+  // ============ EXTRACCIÓN DE HOY DESDE INTERNO ============
+  Future<void> extractTodayMediaFromInternal({
+    Function(TransferProgress)? onProgress,
+  }) async {
+    final today = DateTime.now();
+    final folderName = 'Fotos_Internas_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final destinationDir = await _createLocalBackupDir(folderName);
+
+    await _extractMediaFromDateInternal(
+      today,
+      destinationDir: destinationDir,
+      onProgress: onProgress,
+    );
+  }
+
+// ============ EXTRACCIÓN DE FECHA ESPECÍFICA DESDE INTERNO ============
+  Future<void> extractSpecificDateFromInternal(
+      DateTime date, {
+        Function(TransferProgress)? onProgress,
+      }) async {
+    final folderName = 'Fotos_Internas_${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final destinationDir = await _createLocalBackupDir(folderName);
+
+    await _extractMediaFromDateInternal(
+      date,
+      destinationDir: destinationDir,
+      onProgress: onProgress,
+    );
+  }
+
+// ============ MÉTODO PRIVADO REUTILIZABLE PARA INTERNO ============
+  Future<void> _extractMediaFromDateInternal(
+      DateTime date, {
+        required Directory destinationDir,
+        Function(TransferProgress)? onProgress,
+      }) async {
+    final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
+
+    // Verificar si existe
+    final dirExists = await adbService.checkDirectoryExists(internalCameraPath);
+    if (!dirExists) {
+      throw Exception('No se encontró la carpeta Camera en almacenamiento interno');
+    }
+
+    final files = await adbService.listFiles(internalCameraPath);
+    final dateStr = date.toString().substring(0, 10).replaceAll('-', '');
+
+    final filteredFiles = <String>[];
+    for (final filename in files) {
+      if (!_isMediaFile(filename)) continue;
+
+      final match = _dateOnlyRegex.firstMatch(filename);
+      if (match == null) continue;
+
+      final fileDate = match.group(1);
+      if (fileDate == dateStr) {
+        filteredFiles.add(filename);
+      }
+    }
+
+    print('📊 Encontrados ${filteredFiles.length} archivos para $dateStr en interno');
+
+    if (filteredFiles.isEmpty) {
+      throw Exception('No se encontraron fotos o vídeos para la fecha especificada en interno');
+    }
+
+    await _copyFilesWithProgress(
+      files: filteredFiles,
+      sourceDir: internalCameraPath,
+      destinationDir: destinationDir,
+      onProgress: onProgress,
+    );
+  }
+
+// ============ BUSCAR ARCHIVOS POR FECHA EN INTERNO ============
+  Future<List<String>> findFilesByDateInternal(DateTime date) async {
+    final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
+    final dirExists = await adbService.checkDirectoryExists(internalCameraPath);
+    if (!dirExists) {
+      return [];
+    }
+
+    final files = await adbService.listFiles(internalCameraPath);
+    final dateStr = date.toString().substring(0, 10).replaceAll('-', '');
+
+    return files.where((filename) {
+      if (!_isMediaFile(filename)) return false;
+
+      final match = _dateOnlyRegex.firstMatch(filename);
+      if (match == null) return false;
+
+      final fileDate = match.group(1);
+      return fileDate == dateStr;
+    }).toList();
+  }
+
   // ============ BÚSQUEDA POR FECHA ============
   Future<void> extractMediaFromSpecificDate(
       DateTime date, {

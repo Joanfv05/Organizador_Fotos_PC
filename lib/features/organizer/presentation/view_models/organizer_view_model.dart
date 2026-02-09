@@ -246,6 +246,94 @@ class OrganizerViewModel extends ChangeNotifier {
     );
   }
 
+  // ============ COPIAR DESDE ALMACENAMIENTO INTERNO ============
+  Future<void> copyFromInternalStorage({required int year}) async {
+    final folderName = 'Fotos_Internas_$year';
+
+    await _executeOperation(
+      operationName: 'Copiando desde almacenamiento interno - Año $year',
+      operation: () async {
+        await repository.copyFromInternalStorage(
+          year: year,
+          onProgress: (progress) => _handleProgress(progress, 'interno año $year'),
+        );
+      },
+      successMessage: '✅ Archivos del año $year (interno) copiados correctamente',
+      errorPrefix: '❌ Error al copiar archivos del interno',
+      folderName: folderName,
+    );
+  }
+
+  Future<void> copyFromInternalStorageByMonth(int year, int month) async {
+    final monthName = _getMonthName(month);
+    final monthStr = month.toString().padLeft(2, '0');
+    final folderName = 'Fotos_Internas_${year}-${monthStr}-$monthName';
+
+    await _executeOperation(
+      operationName: 'Copiando desde almacenamiento interno - Mes específico',
+      operation: () async {
+        await repository.copyFromInternalStorageByMonth(
+          year: year,
+          month: month,
+          onProgress: (progress) => _handleProgress(progress, 'interno mes $monthName $year'),
+        );
+      },
+      successMessage: '✅ Fotos y vídeos de $monthName $year (interno) copiados',
+      errorPrefix: '❌ Error al copiar archivos del interno (mes)',
+      folderName: folderName,
+    );
+  }
+
+  // ============ EXTRACCIÓN DE HOY DESDE INTERNO ============
+  Future<void> extractTodayMediaFromInternal() async {
+    final today = DateTime.now();
+    final folderName = 'Fotos_Internas_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+    await _executeOperation(
+      operationName: 'Extrayendo fotos de hoy desde interno',
+      operation: () async {
+        await repository.extractTodayMediaFromInternal(
+          onProgress: (progress) => _handleProgress(progress, 'hoy (interno)'),
+        );
+      },
+      successMessage: '✅ Archivos de hoy (interno) extraídos correctamente',
+      errorPrefix: '❌ Error al extraer archivos desde interno',
+      folderName: folderName,
+    );
+  }
+
+// ============ COPIAR DE FECHA ESPECÍFICA DESDE INTERNO ============
+  Future<void> extractSpecificDateFromInternal(DateTime? selectedDate) async {
+    if (selectedDate == null) {
+      _showError('❌ Por favor selecciona una fecha');
+      return;
+    }
+
+    final dateStr = '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}';
+    final folderName = 'Fotos_Internas_${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+
+    await _executeOperation(
+      operationName: 'Copiando fotos de fecha específica desde interno',
+      operation: () async {
+        final matchingFiles = await repository.findFilesByDateInternal(selectedDate);
+        _addLog('📊 Encontrados ${matchingFiles.length} archivos para la fecha en interno');
+
+        if (matchingFiles.isEmpty) {
+          _showSuccess('ℹ️ No se encontraron archivos para la fecha $dateStr en interno');
+          return;
+        }
+
+        await repository.extractSpecificDateFromInternal(
+          selectedDate,
+          onProgress: (progress) => _handleProgress(progress, 'fecha $dateStr (interno)'),
+        );
+      },
+      successMessage: '✅ Archivos de $dateStr (interno) copiados correctamente',
+      errorPrefix: '❌ Error al copiar archivos desde interno',
+      folderName: folderName,
+    );
+  }
+
   // ============ MANEJO DE PROGRESO REUTILIZABLE ============
   void _handleProgress(TransferProgress progress, String context) {
     currentProgress = progress;
