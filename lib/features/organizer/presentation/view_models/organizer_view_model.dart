@@ -334,6 +334,67 @@ class OrganizerViewModel extends ChangeNotifier {
     );
   }
 
+  // ============ CAPTURAS DE PANTALLA ============
+  Future<void> copyScreenshotsByYear({required int year}) async {
+    final folderName = 'Capturas_$year';
+
+    await _executeOperation(
+      operationName: 'Copiando capturas de pantalla del año $year',
+      operation: () async {
+        await repository.copyScreenshotsByYear(
+          year: year,
+          onProgress: (progress) => _handleProgress(progress, 'capturas año $year'),
+        );
+      },
+      successMessage: '✅ Capturas del año $year copiadas y organizadas',
+      errorPrefix: '❌ Error al copiar capturas del año $year',
+      folderName: folderName,
+    );
+  }
+
+  Future<void> copyScreenshotsByMonth({required int year, required int month}) async {
+    final monthName = _getMonthName(month);
+    final monthStr = month.toString().padLeft(2, '0');
+    final folderName = 'Capturas_${year}-${monthStr}-$monthName';
+
+    await _executeOperation(
+      operationName: 'Copiando capturas de $monthName $year',
+      operation: () async {
+        await repository.copyScreenshotsByMonth(
+          year: year,
+          month: month,
+          onProgress: (progress) => _handleProgress(progress, 'capturas $monthName $year'),
+        );
+      },
+      successMessage: '✅ Capturas de $monthName $year copiadas',
+      errorPrefix: '❌ Error al copiar capturas del mes',
+      folderName: folderName,
+    );
+  }
+
+  Future<void> copyScreenshotsByDate(DateTime? selectedDate) async {
+    if (selectedDate == null) {
+      _showError('❌ Por favor selecciona una fecha');
+      return;
+    }
+
+    final dateStr = '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}';
+    final folderName = 'Capturas_${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+
+    await _executeOperation(
+      operationName: 'Copiando capturas de $dateStr',
+      operation: () async {
+        await repository.copyScreenshotsByDate(
+          date: selectedDate,
+          onProgress: (progress) => _handleProgress(progress, 'capturas $dateStr'),
+        );
+      },
+      successMessage: '✅ Capturas de $dateStr copiadas',
+      errorPrefix: '❌ Error al copiar capturas de fecha específica',
+      folderName: folderName,
+    );
+  }
+
   // ============ MANEJO DE PROGRESO REUTILIZABLE ============
   void _handleProgress(TransferProgress progress, String context) {
     currentProgress = progress;

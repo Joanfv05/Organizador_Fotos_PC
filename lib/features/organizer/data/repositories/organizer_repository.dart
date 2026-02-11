@@ -11,11 +11,19 @@ class OrganizerRepository {
 
   // Expresiones regulares reutilizables
   static final _storageDirRegex = RegExp(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$');
-  static final _dateRegex = RegExp(r'(?:[A-Z]+_)?(\d{4})(\d{2})(\d{2})_\d{6}.*');
+  static final _dateRegex = RegExp(
+      r'(?:[A-Z]+_)?(\d{4})(\d{2})(\d{2})_\d{6}.*');
   static final _dateOnlyRegex = RegExp(r'(?:[A-Z]+_)?(\d{8})_\d{6}.*');
 
   // Extensiones de media
-  static const _mediaExtensions = ['.jpg', '.jpeg', '.png', '.mp4', '.mov', '.heic'];
+  static const _mediaExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.mp4',
+    '.mov',
+    '.heic'
+  ];
 
   // Meses en español
   static const _months = {
@@ -80,16 +88,21 @@ class OrganizerRepository {
 
     if (Platform.isWindows) {
       // Windows: external/adb/windows/scrcpy.exe
-      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'windows', 'scrcpy.exe');
-      await _startScrcpyWithPath(scrcpyPath, ['--always-on-top', '--max-size=1920']);
+      final scrcpyPath = path.join(
+          currentDir, 'external', 'adb', 'windows', 'scrcpy.exe');
+      await _startScrcpyWithPath(
+          scrcpyPath, ['--always-on-top', '--max-size=1920']);
     } else if (Platform.isLinux) {
       // Linux: external/adb/linux/scrcpy
-      final scrcpyPath = path.join(currentDir, 'external', 'adb', 'linux', 'scrcpy');
-      await _startScrcpyWithPath(scrcpyPath, ['--always-on-top', '--max-size=1920']);
+      final scrcpyPath = path.join(
+          currentDir, 'external', 'adb', 'linux', 'scrcpy');
+      await _startScrcpyWithPath(
+          scrcpyPath, ['--always-on-top', '--max-size=1920']);
     }
   }
 
-  Future<void> _startScrcpyWithPath(String scrcpyPath, List<String> args) async {
+  Future<void> _startScrcpyWithPath(String scrcpyPath,
+      List<String> args) async {
     final scrcpyFile = File(scrcpyPath);
 
     if (!await scrcpyFile.exists()) {
@@ -126,7 +139,8 @@ class OrganizerRepository {
     Function(TransferProgress)? onProgress,
   }) async {
     final today = DateTime.now();
-    final folderName = 'Fotos_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final folderName = 'Fotos_${today.year}-${today.month.toString().padLeft(
+        2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final destinationDir = await _createLocalBackupDir(folderName);
 
     await extractorService.extractMediaFromDate(
@@ -179,7 +193,8 @@ class OrganizerRepository {
     final sdCameraPath = await _getSdCameraPathOrThrow();
     final monthStr = month.toString().padLeft(2, '0');
     final monthName = _months[month] ?? 'Mes $month';
-    final localBackupDir = await _createLocalBackupDir('Fotos_$year-$monthStr-$monthName');
+    final localBackupDir = await _createLocalBackupDir(
+        'Fotos_$year-$monthStr-$monthName');
 
     print('📁 Local Backup Dir: ${localBackupDir.path}');
 
@@ -212,7 +227,8 @@ class OrganizerRepository {
     // Verificar si existe
     final dirExists = await adbService.checkDirectoryExists(internalCameraPath);
     if (!dirExists) {
-      throw Exception('No se encontró la carpeta Camera en almacenamiento interno');
+      throw Exception(
+          'No se encontró la carpeta Camera en almacenamiento interno');
     }
 
     final localBackupDir = await _createLocalBackupDir('Fotos_Internas_$year');
@@ -225,7 +241,8 @@ class OrganizerRepository {
     print('📊 Archivos del año $year: ${mediaFiles.length}');
 
     if (mediaFiles.isEmpty) {
-      throw Exception('No se encontraron fotos o vídeos para el año $year en almacenamiento interno');
+      throw Exception(
+          'No se encontraron fotos o vídeos para el año $year en almacenamiento interno');
     }
 
     await _copyFilesWithProgress(
@@ -248,7 +265,8 @@ class OrganizerRepository {
     final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
     final monthStr = month.toString().padLeft(2, '0');
     final monthName = _months[month] ?? 'Mes $month';
-    final localBackupDir = await _createLocalBackupDir('Fotos_Internas_$year-$monthStr-$monthName');
+    final localBackupDir = await _createLocalBackupDir(
+        'Fotos_Internas_$year-$monthStr-$monthName');
 
     print('📁 Local Backup Dir: ${localBackupDir.path}');
 
@@ -256,7 +274,8 @@ class OrganizerRepository {
     final monthFiles = _filterFilesByMonth(files, year, month);
 
     if (monthFiles.isEmpty) {
-      throw Exception('No se encontraron fotos o vídeos para $year-$monthStr en interno');
+      throw Exception(
+          'No se encontraron fotos o vídeos para $year-$monthStr en interno');
     }
 
     await _copyFilesWithProgress(
@@ -272,7 +291,9 @@ class OrganizerRepository {
     Function(TransferProgress)? onProgress,
   }) async {
     final today = DateTime.now();
-    final folderName = 'Fotos_Internas_${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final folderName = 'Fotos_Internas_${today.year}-${today.month
+        .toString()
+        .padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final destinationDir = await _createLocalBackupDir(folderName);
 
     await _extractMediaFromDateInternal(
@@ -283,11 +304,12 @@ class OrganizerRepository {
   }
 
 // ============ EXTRACCIÓN DE FECHA ESPECÍFICA DESDE INTERNO ============
-  Future<void> extractSpecificDateFromInternal(
-      DateTime date, {
-        Function(TransferProgress)? onProgress,
-      }) async {
-    final folderName = 'Fotos_Internas_${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  Future<void> extractSpecificDateFromInternal(DateTime date, {
+    Function(TransferProgress)? onProgress,
+  }) async {
+    final folderName = 'Fotos_Internas_${date.year}-${date.month
+        .toString()
+        .padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final destinationDir = await _createLocalBackupDir(folderName);
 
     await _extractMediaFromDateInternal(
@@ -298,17 +320,17 @@ class OrganizerRepository {
   }
 
 // ============ MÉTODO PRIVADO REUTILIZABLE PARA INTERNO ============
-  Future<void> _extractMediaFromDateInternal(
-      DateTime date, {
-        required Directory destinationDir,
-        Function(TransferProgress)? onProgress,
-      }) async {
+  Future<void> _extractMediaFromDateInternal(DateTime date, {
+    required Directory destinationDir,
+    Function(TransferProgress)? onProgress,
+  }) async {
     final internalCameraPath = '/storage/emulated/0/DCIM/Camera';
 
     // Verificar si existe
     final dirExists = await adbService.checkDirectoryExists(internalCameraPath);
     if (!dirExists) {
-      throw Exception('No se encontró la carpeta Camera en almacenamiento interno');
+      throw Exception(
+          'No se encontró la carpeta Camera en almacenamiento interno');
     }
 
     final files = await adbService.listFiles(internalCameraPath);
@@ -327,10 +349,12 @@ class OrganizerRepository {
       }
     }
 
-    print('📊 Encontrados ${filteredFiles.length} archivos para $dateStr en interno');
+    print('📊 Encontrados ${filteredFiles
+        .length} archivos para $dateStr en interno');
 
     if (filteredFiles.isEmpty) {
-      throw Exception('No se encontraron fotos o vídeos para la fecha especificada en interno');
+      throw Exception(
+          'No se encontraron fotos o vídeos para la fecha especificada en interno');
     }
 
     await _copyFilesWithProgress(
@@ -339,6 +363,136 @@ class OrganizerRepository {
       destinationDir: destinationDir,
       onProgress: onProgress,
     );
+  }
+
+  // ============ CAPTURAS DE PANTALLA (SCREENSHOTS) ============
+  final String _screenshotsPath = '/storage/emulated/0/DCIM/Screenshots';
+
+  Future<void> copyScreenshotsByYear({
+    required int year,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    print('=== INICIANDO copyScreenshotsByYear($year) ===');
+
+    final dirExists = await adbService.checkDirectoryExists(_screenshotsPath);
+    if (!dirExists) {
+      throw Exception('No se encontró la carpeta Screenshots');
+    }
+
+    final localBackupDir = await _createLocalBackupDir('Capturas_$year');
+    final files = await adbService.listFiles(_screenshotsPath);
+    final screenshots = _filterScreenshotsByYear(files, year);
+
+    if (screenshots.isEmpty) {
+      throw Exception('No se encontraron capturas del año $year');
+    }
+
+    await _copyFilesWithProgress(
+      files: screenshots,
+      sourceDir: _screenshotsPath,
+      destinationDir: localBackupDir,
+      onProgress: onProgress,
+    );
+
+    await _organizeByMonth(localBackupDir.path, onProgress: onProgress);
+  }
+
+  Future<void> copyScreenshotsByMonth({
+    required int year,
+    required int month,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    print('=== INICIANDO copyScreenshotsByMonth($year, $month) ===');
+
+    final dirExists = await adbService.checkDirectoryExists(_screenshotsPath);
+    if (!dirExists) {
+      throw Exception('No se encontró la carpeta Screenshots');
+    }
+
+    final monthName = _months[month] ?? 'Mes $month';
+    final monthStr = month.toString().padLeft(2, '0');
+    final localBackupDir = await _createLocalBackupDir(
+        'Capturas_$year-$monthStr-$monthName');
+
+    final files = await adbService.listFiles(_screenshotsPath);
+    final screenshots = _filterScreenshotsByMonth(files, year, month);
+
+    if (screenshots.isEmpty) {
+      throw Exception('No se encontraron capturas de $monthName $year');
+    }
+
+    await _copyFilesWithProgress(
+      files: screenshots,
+      sourceDir: _screenshotsPath,
+      destinationDir: localBackupDir,
+      onProgress: onProgress,
+    );
+  }
+
+  Future<void> copyScreenshotsByDate({
+    required DateTime date,
+    Function(TransferProgress)? onProgress,
+  }) async {
+    print('=== INICIANDO copyScreenshotsByDate($date) ===');
+
+    final dirExists = await adbService.checkDirectoryExists(_screenshotsPath);
+    if (!dirExists) {
+      throw Exception('No se encontró la carpeta Screenshots');
+    }
+
+    final dateStr = '${date.year}-${date.month.toString().padLeft(
+        2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final localBackupDir = await _createLocalBackupDir('Capturas_$dateStr');
+
+    final files = await adbService.listFiles(_screenshotsPath);
+    final screenshots = await _filterScreenshotsByDate(files, date);
+
+    if (screenshots.isEmpty) {
+      throw Exception('No se encontraron capturas para $dateStr');
+    }
+
+    await _copyFilesWithProgress(
+      files: screenshots,
+      sourceDir: _screenshotsPath,
+      destinationDir: localBackupDir,
+      onProgress: onProgress,
+    );
+  }
+
+// ============ FILTROS ESPECÍFICOS PARA SCREENSHOTS ============
+  List<String> _filterScreenshotsByYear(List<String> files, int year) {
+    final yearStr = year.toString();
+    return files.where((file) {
+      if (!_isMediaFile(file)) return false;
+      final match = RegExp(r'Screenshot_(\d{4})-(\d{2})-(\d{2})').firstMatch(
+          file);
+      return match != null && match.group(1) == yearStr;
+    }).toList();
+  }
+
+  List<String> _filterScreenshotsByMonth(List<String> files, int year,
+      int month) {
+    final yearStr = year.toString();
+    final monthStr = month.toString().padLeft(2, '0');
+
+    return files.where((file) {
+      if (!_isMediaFile(file)) return false;
+      final match = RegExp(r'Screenshot_(\d{4})-(\d{2})-(\d{2})').firstMatch(
+          file);
+      return match != null && match.group(1) == yearStr &&
+          match.group(2) == monthStr;
+    }).toList();
+  }
+
+  Future<List<String>> _filterScreenshotsByDate(List<String> files,
+      DateTime date) async {
+    final dateStr = '${date.year}-${date.month.toString().padLeft(
+        2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    return files.where((file) {
+      if (!_isMediaFile(file)) return false;
+      return file.startsWith('Screenshot_$dateStr');
+    }).toList();
   }
 
 // ============ BUSCAR ARCHIVOS POR FECHA EN INTERNO ============
@@ -364,11 +518,11 @@ class OrganizerRepository {
   }
 
   // ============ BÚSQUEDA POR FECHA ============
-  Future<void> extractMediaFromSpecificDate(
-      DateTime date, {
-        Function(TransferProgress)? onProgress,
-      }) async {
-    final folderName = 'Fotos_${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  Future<void> extractMediaFromSpecificDate(DateTime date, {
+    Function(TransferProgress)? onProgress,
+  }) async {
+    final folderName = 'Fotos_${date.year}-${date.month.toString().padLeft(
+        2, '0')}-${date.day.toString().padLeft(2, '0')}';
     final destinationDir = await _createLocalBackupDir(folderName);
 
     await extractorService.extractMediaFromDate(
@@ -432,7 +586,6 @@ class OrganizerRepository {
       print('✅ Carpeta creada exitosamente: ${targetDir.path}');
 
       return targetDir;
-
     } catch (e) {
       print('🔴 Error creando carpeta: $e');
 
@@ -442,7 +595,8 @@ class OrganizerRepository {
         throw Exception('No se pudo determinar el directorio HOME');
       }
 
-      final fallbackDir = Directory(path.join(homeDir, 'Fotos Organizadas', folderName));
+      final fallbackDir = Directory(
+          path.join(homeDir, 'Fotos Organizadas', folderName));
 
       print('🔄 Usando fallback: ${fallbackDir.path}');
       await fallbackDir.create(recursive: true);
@@ -522,7 +676,6 @@ class OrganizerRepository {
         if (isVideo) {
           await _verifyFileIntegrity(localPath, file);
         }
-
       } catch (e) {
         print('⚠️ Error copiando $file: $e');
         // Continuar con el siguiente archivo
@@ -537,7 +690,8 @@ class OrganizerRepository {
       final file = File(localPath);
       if (await file.exists()) {
         final size = await file.length();
-        print('✅ Video $fileName: ${(size / 1024 / 1024).toStringAsFixed(2)} MB');
+        print(
+            '✅ Video $fileName: ${(size / 1024 / 1024).toStringAsFixed(2)} MB');
 
         // Verificación básica para videos
         if (fileName.toLowerCase().endsWith('.mp4')) {
@@ -581,14 +735,28 @@ class OrganizerRepository {
       for (int i = 0; i < files.length; i++) {
         final file = files[i];
         final fileName = path.basename(file.path);
-        final dateMatch = _dateRegex.firstMatch(fileName);
+
+        // Intentar con formato de cámara primero (YYYYMMDD_HHMMSS)
+        var dateMatch = _dateRegex.firstMatch(fileName);
+        String? year;
+        String? monthNum;
 
         if (dateMatch != null) {
-          final year = dateMatch.group(1)!;
-          final monthNum = int.parse(dateMatch.group(2)!);
-          final monthName = _months[monthNum] ?? 'Desconocido';
+          year = dateMatch.group(1);
+          monthNum = dateMatch.group(2);
+        } else {
+          // Intentar con formato de screenshot (Screenshot_YYYY-MM-DD-...)
+          final screenshotMatch = RegExp(r'Screenshot_(\d{4})-(\d{2})-(\d{2})')
+              .firstMatch(fileName);
+          if (screenshotMatch != null) {
+            year = screenshotMatch.group(1);
+            monthNum = screenshotMatch.group(2);
+          }
+        }
 
-          final monthFolder = '${monthNum.toString().padLeft(2, '0')} - $monthName';
+        if (year != null && monthNum != null) {
+          final monthName = _months[int.parse(monthNum)] ?? 'Desconocido';
+          final monthFolder = '${monthNum.padLeft(2, '0')} - $monthName';
           final monthDir = Directory(path.join(sourceDir, year, monthFolder));
           await monthDir.create(recursive: true);
 
