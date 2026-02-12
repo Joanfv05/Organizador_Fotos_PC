@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:photo_organizer_pc/features/organizer/presentation/view_models/organizer_view_model.dart';
 import 'progress_panel.dart';
 
@@ -12,6 +11,9 @@ class ActionPanel extends StatelessWidget {
   final Function(int year) onCopyAndOrganize;
   final Function(DateTime) onExtractSpecificDateMedia;
   final Function(int year, int month) onCopyMediaByMonth;
+  final VoidCallback onExtractTodayMediaFromInternal;
+  final Function(DateTime) onExtractSpecificDateFromInternal;
+  final OrganizerViewModel viewModel;
 
   const ActionPanel({
     super.key,
@@ -23,19 +25,20 @@ class ActionPanel extends StatelessWidget {
     required this.onCopyAndOrganize,
     required this.onExtractSpecificDateMedia,
     required this.onCopyMediaByMonth,
+    required this.onExtractTodayMediaFromInternal,
+    required this.onExtractSpecificDateFromInternal,
+    required this.viewModel,
   });
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<OrganizerViewModel>();
-
     return Padding(
       padding: const EdgeInsets.all(32),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sección de botones
+            // Panel para tarjeta SD
             Card(
               elevation: 2,
               child: Padding(
@@ -44,7 +47,246 @@ class ActionPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Acciones del dispositivo con la SD',
+                      '📸 Acciones con la tarjeta SD',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        // Botón extraer fotos de hoy desde SD
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? onExtractTodayMedia
+                              : null,
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Extraer fotos de hoy'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // Botón copiar de fecha específica desde SD
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showDatePickerDialog(context, isInternal: false)
+                              : null,
+                          icon: const Icon(Icons.calendar_today),
+                          label: const Text('Copiar de fecha específica'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // Botón copiar y organizar por año desde SD
+                        Tooltip(
+                          message: 'Copia archivos de un año específico desde la SD y los organiza por mes',
+                          child: ElevatedButton.icon(
+                            onPressed: (isConnected == true && !isLoading)
+                                ? () => _showYearPickerDialog(context, isInternal: false)
+                                : null,
+                            icon: const Icon(Icons.sd_card),
+                            label: const Text('Copiar por año'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+
+                        // Botón copiar por mes desde SD
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showMonthPickerDialog(context, isInternal: false)
+                              : null,
+                          icon: const Icon(Icons.sd_card),
+                          label: const Text('Copiar por mes'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Panel para almacenamiento interno
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📱 Acciones con almacenamiento interno',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        // Botón extraer fotos de hoy desde interno
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? onExtractTodayMediaFromInternal
+                              : null,
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Extraer fotos de hoy'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // Botón copiar de fecha específica desde interno
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showDatePickerDialog(context, isInternal: true)
+                              : null,
+                          icon: const Icon(Icons.calendar_today),
+                          label: const Text('Copiar de fecha específica'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // Botón copiar por año desde interno
+                        Tooltip(
+                          message: 'Copia archivos de un año específico desde el almacenamiento interno',
+                          child: ElevatedButton.icon(
+                            onPressed: (isConnected == true && !isLoading)
+                                ? () => _showYearPickerDialog(context, isInternal: true)
+                                : null,
+                            icon: const Icon(Icons.phone_android),
+                            label: const Text('Copiar por año'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+
+                        // Botón copiar por mes desde interno
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showMonthPickerDialog(context, isInternal: true)
+                              : null,
+                          icon: const Icon(Icons.phone_android),
+                          label: const Text('Copiar por mes'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.cyan,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ============ NUEVO: PANEL PARA CAPTURAS DE PANTALLA ============
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📱 Capturas de pantalla',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        // Botón copiar por año
+                        Tooltip(
+                          message: 'Copia capturas de un año específico y las organiza por mes',
+                          child: ElevatedButton.icon(
+                            onPressed: (isConnected == true && !isLoading)
+                                ? () => _showYearPickerScreenshotsDialog(context, viewModel)
+                                : null,
+                            icon: const Icon(Icons.screenshot),
+                            label: const Text('Capturas por año'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+
+                        // Botón copiar por mes
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showMonthPickerScreenshotsDialog(context, viewModel)
+                              : null,
+                          icon: const Icon(Icons.screenshot_monitor),
+                          label: const Text('Capturas por mes'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade600,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+
+                        // Botón copiar por fecha específica
+                        ElevatedButton.icon(
+                          onPressed: (isConnected == true && !isLoading)
+                              ? () => _showDatePickerScreenshotsDialog(context, viewModel)
+                              : null,
+                          icon: const Icon(Icons.calendar_month),
+                          label: const Text('Capturas por fecha'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade800,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Panel de herramientas generales
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '⚙️ Herramientas generales',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -76,61 +318,6 @@ class ActionPanel extends StatelessWidget {
                           label: const Text('Iniciar scrcpy'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.purple,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-
-                        // Botón extraer fotos de hoy
-                        ElevatedButton.icon(
-                          onPressed: (isConnected == true && !isLoading)
-                              ? onExtractTodayMedia
-                              : null,
-                          icon: const Icon(Icons.photo_library),
-                          label: const Text('Extraer fotos de hoy'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-
-                        // Botón copiar y organizar (con tooltip)
-                        Tooltip(
-                          message: 'Copia archivos de un año específico desde la SD y los organiza por mes',
-                          child: ElevatedButton.icon(
-                            onPressed: (isConnected == true && !isLoading)
-                                ? () => _showYearPickerDialog(context)
-                                : null,
-                            icon: const Icon(Icons.content_copy),
-                            label: const Text('Copiar y organizar media por año'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-
-                        // Botón copiar de fecha específica
-                        ElevatedButton.icon(
-                          onPressed: (isConnected == true && !isLoading)
-                              ? () => _showDatePickerDialog(context)
-                              : null,
-                          icon: const Icon(Icons.calendar_today),
-                          label: const Text('Copiar de fecha específica'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-
-                        // Botón copiar fotos/videos de mes específico
-                        ElevatedButton.icon(
-                          onPressed: (isConnected == true && !isLoading)
-                              ? () => _showMonthPickerDialog(context)
-                              : null,
-                          icon: const Icon(Icons.calendar_month),
-                          label: const Text('Copiar de mes específico'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -213,9 +400,9 @@ class ActionPanel extends StatelessWidget {
     );
   }
 
-  // ============ DIÁLOGOS ============
+  // ============ DIÁLOGOS EXISTENTES ============
 
-  void _showDatePickerDialog(BuildContext context) {
+  void _showDatePickerDialog(BuildContext context, {required bool isInternal}) {
     showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -225,8 +412,8 @@ class ActionPanel extends StatelessWidget {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.deepPurple,
+            colorScheme: ColorScheme.light(
+              primary: isInternal ? Colors.teal : Colors.deepPurple,
               onPrimary: Colors.white,
             ),
           ),
@@ -235,12 +422,16 @@ class ActionPanel extends StatelessWidget {
       },
     ).then((selectedDate) {
       if (selectedDate != null) {
-        onExtractSpecificDateMedia(selectedDate);
+        if (isInternal) {
+          onExtractSpecificDateFromInternal(selectedDate);
+        } else {
+          onExtractSpecificDateMedia(selectedDate);
+        }
       }
     });
   }
 
-  void _showYearPickerDialog(BuildContext context) {
+  void _showYearPickerDialog(BuildContext context, {required bool isInternal}) {
     final now = DateTime.now();
     final currentYear = now.year;
 
@@ -260,18 +451,20 @@ class ActionPanel extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Seleccionar año',
-                        style: TextStyle(
+                      Text(
+                        isInternal ? 'Seleccionar año (Interno)' : 'Seleccionar año (SD)',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      const Text(
-                        '¿De qué año quieres copiar y organizar las fotos?',
-                        style: TextStyle(fontSize: 14),
+                      Text(
+                        isInternal
+                            ? '¿De qué año quieres copiar desde el almacenamiento interno?'
+                            : '¿De qué año quieres copiar desde la tarjeta SD?',
+                        style: const TextStyle(fontSize: 14),
                       ),
                       const SizedBox(height: 16),
 
@@ -303,18 +496,24 @@ class ActionPanel extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
+                          color: isInternal ? Colors.teal.shade50 : Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, color: Colors.orange, size: 18),
+                            Icon(
+                              isInternal ? Icons.phone_android : Icons.sd_card,
+                              color: isInternal ? Colors.teal : Colors.orange,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Se copiarán fotos y vídeos del año $selectedYear',
+                                isInternal
+                                    ? 'Se copiarán fotos/vídeos del año $selectedYear desde el almacenamiento interno'
+                                    : 'Se copiarán fotos/vídeos del año $selectedYear desde la tarjeta SD',
                                 style: TextStyle(
-                                  color: Colors.orange[800],
+                                  color: isInternal ? Colors.teal[800] : Colors.orange[800],
                                   fontWeight: FontWeight.w500,
                                   fontSize: 13,
                                 ),
@@ -338,16 +537,20 @@ class ActionPanel extends StatelessWidget {
                           ElevatedButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              onCopyAndOrganize(selectedYear);
+                              if (isInternal) {
+                                viewModel.copyFromInternalStorage(year: selectedYear);
+                              } else {
+                                onCopyAndOrganize(selectedYear);
+                              }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
+                              backgroundColor: isInternal ? Colors.teal : Colors.orange,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text('Seleccionar'),
+                            child: const Text('Copiar'),
                           ),
                         ],
                       ),
@@ -362,7 +565,7 @@ class ActionPanel extends StatelessWidget {
     );
   }
 
-  void _showMonthPickerDialog(BuildContext context) {
+  void _showMonthPickerDialog(BuildContext context, {required bool isInternal}) {
     final now = DateTime.now();
     final currentYear = now.year;
 
@@ -370,11 +573,164 @@ class ActionPanel extends StatelessWidget {
       context: context,
       builder: (context) => _YearMonthDialog(
         currentYear: currentYear,
-        onSelected: onCopyMediaByMonth,
-        title: 'Seleccionar mes',
-        buttonText: 'Seleccionar',
+        onSelected: isInternal
+            ? (year, month) {
+          viewModel.copyFromInternalStorageByMonth(year, month);
+        }
+            : onCopyMediaByMonth,
+        title: isInternal ? 'Seleccionar mes (Interno)' : 'Seleccionar mes (SD)',
+        buttonText: 'Copiar',
+        isInternal: isInternal,
       ),
     );
+  }
+
+  // ============ NUEVOS DIÁLOGOS PARA CAPTURAS DE PANTALLA ============
+
+  void _showYearPickerScreenshotsDialog(BuildContext context, OrganizerViewModel viewModel) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        int selectedYear = currentYear;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Seleccionar año (Capturas)',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('¿De qué año quieres copiar las capturas de pantalla?'),
+                      const SizedBox(height: 16),
+
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: DropdownButton<int>(
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          value: selectedYear,
+                          onChanged: (value) => setState(() => selectedYear = value!),
+                          items: List.generate(10, (index) {
+                            final year = currentYear - index;
+                            return DropdownMenuItem(
+                              value: year,
+                              child: Text('$year'),
+                            );
+                          }),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.screenshot, color: Colors.amber, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Se copiarán capturas del año $selectedYear',
+                                style: TextStyle(color: Colors.amber.shade800, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              viewModel.copyScreenshotsByYear(year: selectedYear);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Copiar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showMonthPickerScreenshotsDialog(BuildContext context, OrganizerViewModel viewModel) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
+    showDialog(
+      context: context,
+      builder: (context) => _YearMonthDialog(
+        currentYear: currentYear,
+        onSelected: (year, month) {
+          viewModel.copyScreenshotsByMonth(year: year, month: month);
+        },
+        title: 'Seleccionar mes (Capturas)',
+        buttonText: 'Copiar',
+        isInternal: false,
+      ),
+    );
+  }
+
+  void _showDatePickerScreenshotsDialog(BuildContext context, OrganizerViewModel viewModel) {
+    showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      locale: const Locale('es', 'ES'),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.amber,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    ).then((selectedDate) {
+      if (selectedDate != null) {
+        viewModel.copyScreenshotsByDate(selectedDate);
+      }
+    });
   }
 }
 
@@ -385,12 +741,14 @@ class _YearMonthDialog extends StatefulWidget {
   final Function(int, int) onSelected;
   final String title;
   final String buttonText;
+  final bool isInternal;
 
   const _YearMonthDialog({
     required this.currentYear,
     required this.onSelected,
     required this.title,
     required this.buttonText,
+    required this.isInternal,
   });
 
   @override
@@ -409,6 +767,10 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final buttonColor = widget.isInternal ? Colors.teal : Colors.indigo;
+    final icon = widget.isInternal ? Icons.phone_android : Icons.sd_card;
+    final sourceText = widget.isInternal ? 'almacenamiento interno' : 'tarjeta SD';
+
     return Dialog(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -435,15 +797,16 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
               const SizedBox(height: 20),
 
               // Selector de mes
-              _buildMonthSelector(),
+              _buildMonthSelector(buttonColor),
               const SizedBox(height: 16),
 
               // Información de selección
-              if (selectedMonth != null) _buildSelectionInfo(),
+              if (selectedMonth != null)
+                _buildSelectionInfo(buttonColor, icon, sourceText),
               const SizedBox(height: 16),
 
               // Botones
-              _buildActionButtons(),
+              _buildActionButtons(buttonColor),
             ],
           ),
         ),
@@ -486,7 +849,7 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
     );
   }
 
-  Widget _buildMonthSelector() {
+  Widget _buildMonthSelector(Color buttonColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -518,12 +881,12 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: selectedMonth == month
-                        ? Colors.indigo
+                        ? buttonColor
                         : Colors.grey[100],
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: selectedMonth == month
-                          ? Colors.indigo
+                          ? buttonColor
                           : Colors.grey[300]!,
                       width: selectedMonth == month ? 2 : 1,
                     ),
@@ -564,7 +927,7 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
     );
   }
 
-  Widget _buildSelectionInfo() {
+  Widget _buildSelectionInfo(Color buttonColor, IconData icon, String sourceText) {
     final monthNames = [
       'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -573,19 +936,19 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade50,
+        color: buttonColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.calendar_today, color: Colors.indigo, size: 18),
+          Icon(icon, color: buttonColor, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Seleccionado: ${selectedMonth!.toString().padLeft(2, '0')} - '
-                  '${monthNames[selectedMonth! - 1]} $selectedYear',
+              'Se copiarán ${widget.title.contains('Capturas') ? 'capturas' : 'fotos/vídeos'} de ${selectedMonth!.toString().padLeft(2, '0')} - '
+                  '${monthNames[selectedMonth! - 1]} $selectedYear desde $sourceText',
               style: TextStyle(
-                color: Colors.indigo[800],
+                color: buttonColor,
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
               ),
@@ -596,7 +959,7 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Color buttonColor) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -613,7 +976,7 @@ class __YearMonthDialogState extends State<_YearMonthDialog> {
           }
               : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.indigo,
+            backgroundColor: buttonColor,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),

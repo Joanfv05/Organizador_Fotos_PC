@@ -1,0 +1,4 @@
+enum MediaSource {
+  sdCard,
+  internalStorage,
+}
