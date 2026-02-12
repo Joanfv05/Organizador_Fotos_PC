@@ -6,6 +6,7 @@ import 'package:photo_organizer_pc/features/organizer/data/repositories/organize
 import 'package:photo_organizer_pc/features/organizer/presentation/view_models/organizer_view_model.dart';
 import 'package:photo_organizer_pc/features/organizer/presentation/widgets/directory_tree.dart';
 import 'package:photo_organizer_pc/features/organizer/presentation/widgets/action_panel.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class OrganizerPage extends StatelessWidget {
   const OrganizerPage({super.key});
@@ -98,6 +99,17 @@ class _OrganizerPageContentState extends State<_OrganizerPageContent> {
             icon: const Icon(Icons.help_outline),
             tooltip: 'Ayuda',
             onPressed: () => _showHelpDialog(context),
+          ),
+          IconButton(
+            icon: FaIcon(
+              FontAwesomeIcons.whatsapp,
+              color: Colors.green,
+              size: 28, // puedes ajustar el tamaño
+            ),
+            tooltip: 'WhatsApp - Fotos y Videos',
+            onPressed: () {
+              Navigator.pushNamed(context, '/whatsapp');
+            },
           ),
         ],
       ),
